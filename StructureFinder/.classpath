@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="lib" path="lib/amidst-v4-3-beta5.jar" sourcepath="lib/amidst-4.3-beta5-sources.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
