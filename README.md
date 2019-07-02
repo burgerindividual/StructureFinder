@@ -1,5 +1,5 @@
 ## StructureFinder
-StructureFinder is a program that is built to find structures in Minecraft and list their coordinates.
+StructureFinder is a program that is built to find structures from a seed in Minecraft and list their coordinates.
 
 It relies on the [Amidst library](https://github.com/toolbox4minecraft/amidst) to do most of the work.
 
