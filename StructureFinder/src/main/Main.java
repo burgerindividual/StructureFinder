@@ -72,22 +72,14 @@ public class Main {
 
 	public static void swingSetup() {
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-		Font font = new Font("Arial", Font.BOLD, screenSize.height / 90);
-		lRadius.setFont(font);
-		lStartX.setFont(font);
-		lStartZ.setFont(font);
-		lSeed.setFont(font);
-		lDimension.setFont(font);
-		lStructure.setFont(font);
-		lWorldType.setFont(font);
 		GridBagConstraints constraints = new GridBagConstraints();
+		
 		jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		// jframe.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		jframe.setSize((int) (screenSize.width / 3.2), (int) (screenSize.height / 3.6));
 		jframe.setResizable(false);
 		jframe.add(jpanel);
-		// constraints.ipadx = jframe.getWidth() / 20;
-		// constraints.ipadx = jframe.getHeight() / 20;
+		
 		constraints.insets = new Insets(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 40,
 				jframe.getWidth() / 50);
 		constraints.fill = GridBagConstraints.BOTH;
@@ -98,6 +90,7 @@ public class Main {
 		progressbar.setForeground(new Color(120, 230, 90));
 		progressbar.setStringPainted(true);
 		jpanel.add(progressbar, constraints);
+		
 		constraints.fill = GridBagConstraints.NONE;
 		constraints.anchor = GridBagConstraints.PAGE_END;
 		constraints.gridx = 0;
@@ -105,9 +98,11 @@ public class Main {
 		constraints.gridwidth = 1;
 		constraints.weighty = 0.1;
 		jpanel.add(dimensionbox, constraints);
+		
 		constraints.weighty = 0;
 		constraints.anchor = GridBagConstraints.PAGE_START;
 		jpanel.add(lDimension, constraints);
+		
 		constraints.fill = GridBagConstraints.NONE;
 		constraints.anchor = GridBagConstraints.PAGE_END;
 		constraints.gridx = 1;
@@ -115,9 +110,11 @@ public class Main {
 		constraints.gridwidth = 1;
 		constraints.weighty = 0.1;
 		jpanel.add(structurebox, constraints);
+		
 		constraints.weighty = 0;
 		constraints.anchor = GridBagConstraints.PAGE_START;
 		jpanel.add(lStructure, constraints);
+		
 		constraints.fill = GridBagConstraints.NONE;
 		constraints.anchor = GridBagConstraints.PAGE_END;
 		constraints.gridx = 2;
@@ -125,9 +122,11 @@ public class Main {
 		constraints.gridwidth = 1;
 		constraints.weighty = 0.1;
 		jpanel.add(worldtypebox, constraints);
+		
 		constraints.weighty = 0;
 		constraints.anchor = GridBagConstraints.PAGE_START;
 		jpanel.add(lWorldType, constraints);
+		
 		radius.setPreferredSize(dimensionbox.getPreferredSize());
 		constraints.fill = GridBagConstraints.NONE;
 		constraints.anchor = GridBagConstraints.PAGE_END;
@@ -136,9 +135,11 @@ public class Main {
 		constraints.gridwidth = 1;
 		constraints.weighty = 0.1;
 		jpanel.add(radius, constraints);
+		
 		constraints.weighty = 0;
 		constraints.anchor = GridBagConstraints.PAGE_START;
 		jpanel.add(lRadius, constraints);
+		
 		startX.setPreferredSize(structurebox.getPreferredSize());
 		constraints.fill = GridBagConstraints.NONE;
 		constraints.anchor = GridBagConstraints.PAGE_END;
@@ -147,9 +148,11 @@ public class Main {
 		constraints.gridwidth = 1;
 		constraints.weighty = 0.1;
 		jpanel.add(startX, constraints);
+		
 		constraints.weighty = 0;
 		constraints.anchor = GridBagConstraints.PAGE_START;
 		jpanel.add(lStartX, constraints);
+		
 		startZ.setPreferredSize(worldtypebox.getPreferredSize());
 		constraints.fill = GridBagConstraints.NONE;
 		constraints.anchor = GridBagConstraints.PAGE_END;
@@ -158,9 +161,11 @@ public class Main {
 		constraints.gridwidth = 1;
 		constraints.weighty = 0.1;
 		jpanel.add(startZ, constraints);
+		
 		constraints.weighty = 0;
 		constraints.anchor = GridBagConstraints.PAGE_START;
 		jpanel.add(lStartZ, constraints);
+		
 		constraints.insets = new Insets(jframe.getHeight() / 10, jframe.getWidth() / 50, jframe.getHeight() / 20,
 				jframe.getWidth() / 50);
 		constraints.fill = GridBagConstraints.HORIZONTAL;
@@ -170,11 +175,13 @@ public class Main {
 		constraints.gridwidth = 2;
 		constraints.weighty = 0.2;
 		jpanel.add(seed, constraints);
+		
 		constraints.insets = new Insets(jframe.getHeight() / 15, 0, 0, 0);
 		constraints.weighty = 0;
 		constraints.gridx = 1;
 		constraints.anchor = GridBagConstraints.CENTER;
 		jpanel.add(lSeed, constraints);
+		
 		constraints.insets = new Insets(jframe.getHeight() / 10, jframe.getWidth() / 50, jframe.getHeight() / 20,
 				jframe.getWidth() / 50);
 		constraints.fill = GridBagConstraints.NONE;
@@ -185,6 +192,7 @@ public class Main {
 		constraints.weighty = 0.2;
 		jbutton.setBorderPainted(false);
 		jpanel.add(jbutton, constraints);
+		
 		constraints.insets = new Insets(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 40,
 				jframe.getWidth() / 50);
 		output.setSize(scrollpane.getSize());
@@ -199,6 +207,7 @@ public class Main {
 		constraints.weightx = 1;
 		constraints.weighty = 1;
 		jpanel.add(scrollpane, constraints);
+		
 		jframe.setVisible(true);
 	}
 
