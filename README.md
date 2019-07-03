@@ -3,6 +3,8 @@ StructureFinder is a program that is built to find structures from a seed in Min
 
 It relies on the [Amidst library](https://github.com/toolbox4minecraft/amidst) to do most of the work.
 
+# [Releases](https://github.com/burgerguy/StructureFinder/releases/)
+
 # Features
 
 - Easy to use
