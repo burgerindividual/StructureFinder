@@ -18,6 +18,7 @@ It relies on the [Amidst library](https://github.com/toolbox4minecraft/amidst) t
 - [ ] Accurate End City finding through chunk generation
 - [ ] Fix Nether Fortresses
 - [ ] Add Buried Treasure Support
+- [ ] Add Pillager Outpost Support
 - [ ] Better multithreading based off core count
 
 ## Build Requirements
