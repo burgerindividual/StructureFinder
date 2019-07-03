@@ -65,18 +65,18 @@ public class StructureFinder extends Thread {
 
 	public LocationChecker parseLocationChecker(String structtype, WorldSeed seed) {
 		switch (structtype) {
-		case "Village":  // works
+		case "Village": // works
 			structureOffset = 4;
 			return new VillageLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesForStructure_Village(), versionFeatures.getDoComplexVillageCheck());
-		case "Mineshaft":  // works
+		case "Mineshaft": // works
 			structureOffset = 8;
 			return versionFeatures.getMineshaftAlgorithmFactory().apply(seed.getLong());
-		case "Mansion":  // works
+		case "Mansion": // works
 			structureOffset = 8;
 			return new WoodlandMansionLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesForStructure_WoodlandMansion());
-		case "Jungle Temple":  // works
+		case "Jungle Temple": // works
 			structureOffset = 8;
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesAtMiddleOfChunk_JungleTemple(),
@@ -88,43 +88,45 @@ public class StructureFinder extends Thread {
 					versionFeatures.getValidBiomesAtMiddleOfChunk_DesertTemple(),
 					versionFeatures.getSeedForStructure_DesertTemple(),
 					versionFeatures.getBuggyStructureCoordinateMath());
-		case "Igloo":  // works
+		case "Igloo": // works
 			structureOffset = 8;
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesAtMiddleOfChunk_Igloo(), versionFeatures.getSeedForStructure_Igloo(),
 					versionFeatures.getBuggyStructureCoordinateMath());
-		case "Shipwreck":  // works
+		case "Shipwreck": // works
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getMaxDistanceScatteredFeatures_Shipwreck(), (byte) 8,
 					versionFeatures.getValidBiomesAtMiddleOfChunk_Shipwreck(),
 					versionFeatures.getSeedForStructure_Shipwreck(), versionFeatures.getBuggyStructureCoordinateMath());
-		case "Swamp Hut":  // works
+		case "Swamp Hut": // works
 			structureOffset = 8;
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesAtMiddleOfChunk_WitchHut(),
 					versionFeatures.getSeedForStructure_WitchHut(), versionFeatures.getBuggyStructureCoordinateMath());
-		case "Stronghold":  // doesn't work at all
+		case "Stronghold": // doesn't work at all
 			structureOffset = 0;
 			return versionFeatures.getMineshaftAlgorithmFactory().apply(seed.getLong());
-		case "Monument":  // works
+		case "Monument": // works
 			structureOffset = 8;
 			return versionFeatures.getOceanMonumentLocationCheckerFactory().apply(seed.getLong(),
 					world.getBiomeDataOracle(), versionFeatures.getValidBiomesAtMiddleOfChunk_OceanMonument(),
 					versionFeatures.getValidBiomesForStructure_OceanMonument());
-		case "Ocean Ruin":  // works
+		case "Ocean Ruin": // works
 			structureOffset = 8;
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(), (byte) 16, (byte) 8,
 					versionFeatures.getValidBiomesAtMiddleOfChunk_OceanRuins(),
 					versionFeatures.getSeedForStructure_OceanRuins(),
 					versionFeatures.getBuggyStructureCoordinateMath());
-		case "Nether Fortress":  // doesn't work at all
+		case "Nether Fortress": // doesn't work at all
 			structureOffset = 88;
 			return new NetherFortressAlgorithm(seed.getLong());
-		case "End City":  // lots of false positives due to no influence implementation
+		case "End City": // lots of false positives due to no influence implementation
 			structureOffset = 8;
 			return new EndCityLocationChecker(seed.getLong());
 		case "Buried Treasure":
-			return null; // TODO buried treasure support
+			return new BuriedTreasureLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
+					versionFeatures.getValidBiomesAtMiddleOfChunk_BuriedTreasure(),
+					versionFeatures.getSeedForStructure_BuriedTreasure());
 		default:
 			System.err.println(
 					"parseLocationChecker error: Input did not match any structure type, instead got " + structtype);
