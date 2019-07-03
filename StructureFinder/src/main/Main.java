@@ -2,7 +2,6 @@ package main;
 
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -52,14 +51,16 @@ public class Main {
 	private static JTextPane output = new JTextPane();
 	private static JScrollPane scrollpane = new JScrollPane(output);
 	public static JProgressBar progressbar = new JProgressBar();
-	private static JLabel lRadius = new JLabel("Radius (in Chunks)");
+	private static JLabel lRadius = new JLabel("Radius (Chunks)");
 	private static JLabel lStartX = new JLabel("Starting X Pos");
 	private static JLabel lStartZ = new JLabel("Starting Z Pos");
 	private static JLabel lSeed = new JLabel("Seed");
 	private static JLabel lDimension = new JLabel("Dimension (WIP)");
 	private static JLabel lStructure = new JLabel("Structure");
 	private static JLabel lWorldType = new JLabel("World Type");
+	private static JPanel seedPanel = new JPanel(new GridBagLayout());
 	private static StructureFinder sf;
+	private static GridBagConstraints constraints = new GridBagConstraints();
 
 	public static void main(String[] args) {
 		StructureFinder.init();
@@ -72,7 +73,6 @@ public class Main {
 
 	public static void swingSetup() {
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-		GridBagConstraints constraints = new GridBagConstraints();
 		
 		jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		// jframe.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -80,132 +80,80 @@ public class Main {
 		jframe.setResizable(false);
 		jframe.add(jpanel);
 		
-		constraints.insets = new Insets(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 40,
+		Insets insetDefault = new Insets(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 40,
 				jframe.getWidth() / 50);
-		constraints.fill = GridBagConstraints.BOTH;
-		constraints.gridx = 0;
-		constraints.gridy = 0;
-		constraints.gridwidth = 3;
-		constraints.weighty = 0.05;
-		progressbar.setForeground(new Color(120, 230, 90));
-		progressbar.setStringPainted(true);
-		jpanel.add(progressbar, constraints);
 		
-		constraints.fill = GridBagConstraints.NONE;
-		constraints.anchor = GridBagConstraints.PAGE_END;
-		constraints.gridx = 0;
-		constraints.gridy = 1;
-		constraints.gridwidth = 1;
-		constraints.weighty = 0.1;
-		jpanel.add(dimensionbox, constraints);
-		
-		constraints.weighty = 0;
-		constraints.anchor = GridBagConstraints.PAGE_START;
+		lDimension.setHorizontalAlignment(JLabel.CENTER);
+		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 1, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lDimension, constraints);
 		
-		constraints.fill = GridBagConstraints.NONE;
-		constraints.anchor = GridBagConstraints.PAGE_END;
-		constraints.gridx = 1;
-		constraints.gridy = 1;
-		constraints.gridwidth = 1;
-		constraints.weighty = 0.1;
-		jpanel.add(structurebox, constraints);
-		
-		constraints.weighty = 0;
-		constraints.anchor = GridBagConstraints.PAGE_START;
+		lStructure.setHorizontalAlignment(JLabel.CENTER);
+		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 1, 1, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lStructure, constraints);
 		
-		constraints.fill = GridBagConstraints.NONE;
-		constraints.anchor = GridBagConstraints.PAGE_END;
-		constraints.gridx = 2;
-		constraints.gridy = 1;
-		constraints.gridwidth = 1;
-		constraints.weighty = 0.1;
-		jpanel.add(worldtypebox, constraints);
-		
-		constraints.weighty = 0;
-		constraints.anchor = GridBagConstraints.PAGE_START;
+		lWorldType.setHorizontalAlignment(JLabel.CENTER);
+		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 2, 1, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lWorldType, constraints);
 		
-		radius.setPreferredSize(dimensionbox.getPreferredSize());
-		constraints.fill = GridBagConstraints.NONE;
-		constraints.anchor = GridBagConstraints.PAGE_END;
-		constraints.gridx = 0;
-		constraints.gridy = 2;
-		constraints.gridwidth = 1;
-		constraints.weighty = 0.1;
-		jpanel.add(radius, constraints);
-		
-		constraints.weighty = 0;
-		constraints.anchor = GridBagConstraints.PAGE_START;
+		lRadius.setHorizontalAlignment(JLabel.CENTER);
+		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 3, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lRadius, constraints);
 		
-		startX.setPreferredSize(structurebox.getPreferredSize());
-		constraints.fill = GridBagConstraints.NONE;
-		constraints.anchor = GridBagConstraints.PAGE_END;
-		constraints.gridx = 1;
-		constraints.gridy = 2;
-		constraints.gridwidth = 1;
-		constraints.weighty = 0.1;
-		jpanel.add(startX, constraints);
-		
-		constraints.weighty = 0;
-		constraints.anchor = GridBagConstraints.PAGE_START;
+		lStartX.setHorizontalAlignment(JLabel.CENTER);
+		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 1, 3, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lStartX, constraints);
 		
-		startZ.setPreferredSize(worldtypebox.getPreferredSize());
-		constraints.fill = GridBagConstraints.NONE;
-		constraints.anchor = GridBagConstraints.PAGE_END;
-		constraints.gridx = 2;
-		constraints.gridy = 2;
-		constraints.gridwidth = 1;
-		constraints.weighty = 0.1;
-		jpanel.add(startZ, constraints);
-		
-		constraints.weighty = 0;
-		constraints.anchor = GridBagConstraints.PAGE_START;
+		lStartZ.setHorizontalAlignment(JLabel.CENTER);
+		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 2, 3, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lStartZ, constraints);
 		
-		constraints.insets = new Insets(jframe.getHeight() / 10, jframe.getWidth() / 50, jframe.getHeight() / 20,
-				jframe.getWidth() / 50);
-		constraints.fill = GridBagConstraints.HORIZONTAL;
-		constraints.anchor = GridBagConstraints.PAGE_END;
-		constraints.gridx = 0;
-		constraints.gridy = 3;
-		constraints.gridwidth = 2;
-		constraints.weighty = 0.2;
-		jpanel.add(seed, constraints);
+		progressbar.setForeground(new Color(120, 230, 90));
+		progressbar.setStringPainted(true);
+		setConstraints(insetDefault, GridBagConstraints.BOTH, 0, 0, 3, 1, 0, 0.05, GridBagConstraints.CENTER);
+		jpanel.add(progressbar, constraints);
 		
-		constraints.insets = new Insets(jframe.getHeight() / 15, 0, 0, 0);
-		constraints.weighty = 0;
-		constraints.gridx = 1;
-		constraints.anchor = GridBagConstraints.CENTER;
-		jpanel.add(lSeed, constraints);
+		setConstraints(insetDefault, GridBagConstraints.NONE, 0, 2, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
+		jpanel.add(dimensionbox, constraints);
 		
-		constraints.insets = new Insets(jframe.getHeight() / 10, jframe.getWidth() / 50, jframe.getHeight() / 20,
-				jframe.getWidth() / 50);
-		constraints.fill = GridBagConstraints.NONE;
-		constraints.anchor = GridBagConstraints.PAGE_END;
-		constraints.gridx = 2;
-		constraints.gridy = 3;
-		constraints.gridwidth = 1;
-		constraints.weighty = 0.2;
+		setConstraints(insetDefault, GridBagConstraints.NONE, 1, 2, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
+		jpanel.add(structurebox, constraints);
+		
+		setConstraints(insetDefault, GridBagConstraints.NONE, 2, 2, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
+		jpanel.add(worldtypebox, constraints);
+		
+		radius.setPreferredSize(dimensionbox.getPreferredSize());
+		setConstraints(insetDefault, GridBagConstraints.NONE, 0, 4, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
+		jpanel.add(radius, constraints);
+		
+		startX.setPreferredSize(structurebox.getPreferredSize());
+		setConstraints(insetDefault, GridBagConstraints.NONE, 1, 4, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
+		jpanel.add(startX, constraints);
+		
+		startZ.setPreferredSize(worldtypebox.getPreferredSize());
+		setConstraints(insetDefault, GridBagConstraints.NONE, 2, 4, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
+		jpanel.add(startZ, constraints);
+		
+		// seperate panel for seed so text is aligned
+		lSeed.setHorizontalAlignment(JLabel.CENTER);
+		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 0, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
+		seedPanel.add(lSeed, constraints);
+		
+		setConstraints(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50, GridBagConstraints.HORIZONTAL, 0, 1, 1, 1, 1, 0, GridBagConstraints.PAGE_END);
+		seedPanel.add(seed, constraints);
+		
+		setConstraints(jframe.getHeight() / 6, 0, 0, 0, GridBagConstraints.BOTH, 0, 6, 2, 1, 0, 0.1, GridBagConstraints.PAGE_END);
+		jpanel.add(seedPanel, constraints);
+		// seed panel ends here
+		
 		jbutton.setBorderPainted(false);
+		setConstraints(0, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50, GridBagConstraints.NONE, 2, 6, 1, 1, 0, 0.1, GridBagConstraints.PAGE_END);
 		jpanel.add(jbutton, constraints);
 		
-		constraints.insets = new Insets(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 40,
-				jframe.getWidth() / 50);
 		output.setSize(scrollpane.getSize());
 		output.setEditable(false);
 		scrollpane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		scrollpane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-		constraints.fill = GridBagConstraints.BOTH;
-		constraints.gridx = 3;
-		constraints.gridy = 0;
-		constraints.gridwidth = 1;
-		constraints.gridheight = 4;
-		constraints.weightx = 1;
-		constraints.weighty = 1;
+		setConstraints(insetDefault, GridBagConstraints.BOTH, 3, 0, 1, 7, 1, 1, GridBagConstraints.CENTER);
 		jpanel.add(scrollpane, constraints);
 		
 		jframe.setVisible(true);
@@ -236,6 +184,30 @@ public class Main {
 				}
 			}
 		});
+	}
+	
+	private static void setConstraints(int iTop, int iLeft, int iBottom, int iRight, int fillConst, int gridx, int gridy, int gridw, int gridh, double weightx, double weighty, int anchor) {
+		constraints.insets = new Insets(iTop, iLeft, iBottom, iRight);
+		constraints.fill = fillConst;
+		constraints.gridx = gridx;
+		constraints.gridy = gridy;
+		constraints.gridwidth = gridw;
+		constraints.gridheight = gridh;
+		constraints.weightx = weightx;
+		constraints.weighty = weighty;
+		constraints.anchor = anchor;
+	}
+	
+	private static void setConstraints(Insets inset, int fillConst, int gridx, int gridy, int gridw, int gridh, double weightx, double weighty, int anchor) {
+		constraints.insets = inset;
+		constraints.fill = fillConst;
+		constraints.gridx = gridx;
+		constraints.gridy = gridy;
+		constraints.gridwidth = gridw;
+		constraints.gridheight = gridh;
+		constraints.weightx = weightx;
+		constraints.weighty = weighty;
+		constraints.anchor = anchor;
 	}
 
 	public static void appendText(String i, Color c) {
