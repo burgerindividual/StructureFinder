@@ -141,7 +141,7 @@ public class Main {
 		setConstraints(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50, GridBagConstraints.HORIZONTAL, 0, 1, 1, 1, 1, 0, GridBagConstraints.PAGE_END);
 		seedPanel.add(seed, constraints);
 		
-		setConstraints(jframe.getHeight() / 6, 0, 0, 0, GridBagConstraints.BOTH, 0, 6, 2, 1, 0, 0.1, GridBagConstraints.PAGE_END);
+		setConstraints(jframe.getHeight() / 8, 0, 0, 0, GridBagConstraints.BOTH, 0, 6, 2, 1, 0, 0.1, GridBagConstraints.PAGE_END);
 		jpanel.add(seedPanel, constraints);
 		// seed panel ends here
 		
