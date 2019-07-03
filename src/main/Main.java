@@ -35,7 +35,7 @@ public class Main {
 	public static final String[] DIMENSIONS = { "Overworld", "Nether", "End" };
 	public static final String[] STRUCTURE_TYPES = { "Village", "Mineshaft", "Mansion", "Jungle Temple",
 			"Desert Temple", "Igloo", "Shipwreck", "Swamp Hut", "Stronghold", "Monument", "Ocean Ruin",
-			"Nether Fortress", "End City"}; // Amidst doesn't support buried treasure
+			"Nether Fortress", "End City", "Buried Treasure"}; // Amidst doesn't support buried treasure
 	public static final String[] WORLD_TYPES = { "Default", "Flat", "Large Biomes", "Amplified" };
 	public static final Border emptyBorder = BorderFactory.createEmptyBorder();
 	private static JFrame jframe = new JFrame("Structure Finder");
