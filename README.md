@@ -16,3 +16,10 @@ It relies on the [Amidst library](https://github.com/toolbox4minecraft/amidst) t
 - [ ] Accurate End City finding through chunk generation
 - [ ] Fix Nether Fortresses
 - [ ] Add Buried Treasure Support
+
+# Build Requirements
+
+- Eclipse Java (Preferably 2019-03)
+- All project files including libraries (/lib)
+
+In Eclipse, go to File > Open Projects from File System... and locate the project files. Then just click Finish.
