@@ -1,17 +1,17 @@
-## StructureFinder
+# StructureFinder
 StructureFinder is a program that is built to find structures from a seed in Minecraft and list their coordinates.
 
 It relies on the [Amidst library](https://github.com/toolbox4minecraft/amidst) to do most of the work.
 
-# [Releases](https://github.com/burgerguy/StructureFinder/releases/)
+## [Releases](https://github.com/burgerguy/StructureFinder/releases/)
 
-# Features
+## Features
 
 - Easy to use
 - Much quicker than using plain Amidst or /locate
 - can get structures in bulk
 
-# TODO's
+## TODO's
 
 - [ ] Sort by nearest
 - [ ] Make UI look better
@@ -19,7 +19,7 @@ It relies on the [Amidst library](https://github.com/toolbox4minecraft/amidst) t
 - [ ] Fix Nether Fortresses
 - [ ] Add Buried Treasure Support
 
-# Build Requirements
+## Build Requirements
 
 - Eclipse Java (Preferably 2019-03)
 - All project files including libraries (/lib)
