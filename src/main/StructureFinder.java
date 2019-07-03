@@ -1,10 +1,12 @@
 package main;
 
+import java.awt.Color;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.function.Consumer;
 
 import javax.swing.SwingUtilities;
+
 import amidst.mojangapi.file.LauncherProfile;
 import amidst.mojangapi.file.MinecraftInstallation;
 import amidst.mojangapi.minecraftinterface.MinecraftInterface;
@@ -18,7 +20,15 @@ import amidst.mojangapi.world.WorldOptions;
 import amidst.mojangapi.world.WorldSeed;
 import amidst.mojangapi.world.WorldType;
 import amidst.mojangapi.world.coordinates.CoordinatesInWorld;
-import amidst.mojangapi.world.icon.locationchecker.*;
+import amidst.mojangapi.world.coordinates.Resolution;
+import amidst.mojangapi.world.icon.locationchecker.BuriedTreasureLocationChecker;
+import amidst.mojangapi.world.icon.locationchecker.EndCityLocationChecker;
+import amidst.mojangapi.world.icon.locationchecker.LocationChecker;
+import amidst.mojangapi.world.icon.locationchecker.NetherFortressAlgorithm;
+import amidst.mojangapi.world.icon.locationchecker.PillagerOutpostLocationChecker;
+import amidst.mojangapi.world.icon.locationchecker.ScatteredFeaturesLocationChecker;
+import amidst.mojangapi.world.icon.locationchecker.VillageLocationChecker;
+import amidst.mojangapi.world.icon.locationchecker.WoodlandMansionLocationChecker;
 import amidst.mojangapi.world.versionfeatures.DefaultVersionFeatures;
 import amidst.mojangapi.world.versionfeatures.VersionFeatures;
 import amidst.parsing.FormatException;
@@ -35,16 +45,20 @@ public class StructureFinder extends Thread {
 	private World world;
 	private VersionFeatures versionFeatures;
 	private int structureOffset;
+	private Resolution resolution;
 
-	public StructureFinder(String seed, String worldtype, String structuretype, int radius, CoordinatesInWorld start) {
-		this.versionFeatures = DefaultVersionFeatures.create(RecognisedVersion._1_13_1);
-		this.worldSeed = WorldSeed.fromUserInput(seed);
-		this.worldType = parseWorldType(worldtype);
-		this.structureType = structuretype;
+	public StructureFinder(String seed, String worldtype, String structuretype, int radius, CoordinatesInWorld start,
+			Resolution resolution) {
+		versionFeatures = DefaultVersionFeatures.create(RecognisedVersion._1_14_3);
+		worldSeed = WorldSeed.fromUserInput(seed);
+		worldType = parseWorldType(worldtype);
+		structureType = structuretype;
 		this.radius = radius;
-		this.startPos = start;
+		startPos = start;
+		this.resolution = resolution;
 	}
 
+	@Override
 	public void run() {
 		createWorld(worldSeed, worldType);
 		locationChecker = parseLocationChecker(structureType, worldSeed);
@@ -65,40 +79,41 @@ public class StructureFinder extends Thread {
 
 	public LocationChecker parseLocationChecker(String structtype, WorldSeed seed) {
 		switch (structtype) {
-		case "Village": // works
+		case "Village":
 			structureOffset = 4;
 			return new VillageLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesForStructure_Village(), versionFeatures.getDoComplexVillageCheck());
-		case "Mineshaft": // works
+		case "Mineshaft":
 			structureOffset = 8;
 			return versionFeatures.getMineshaftAlgorithmFactory().apply(seed.getLong());
-		case "Mansion": // works
+		case "Mansion":
 			structureOffset = 8;
 			return new WoodlandMansionLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesForStructure_WoodlandMansion());
-		case "Jungle Temple": // works
+		case "Jungle Temple":
 			structureOffset = 8;
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesAtMiddleOfChunk_JungleTemple(),
 					versionFeatures.getSeedForStructure_JungleTemple(),
 					versionFeatures.getBuggyStructureCoordinateMath());
-		case "Desert Temple": // works
+		case "Desert Temple":
 			structureOffset = 8;
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesAtMiddleOfChunk_DesertTemple(),
 					versionFeatures.getSeedForStructure_DesertTemple(),
 					versionFeatures.getBuggyStructureCoordinateMath());
-		case "Igloo": // works
+		case "Igloo":
 			structureOffset = 8;
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesAtMiddleOfChunk_Igloo(), versionFeatures.getSeedForStructure_Igloo(),
 					versionFeatures.getBuggyStructureCoordinateMath());
-		case "Shipwreck": // works
+		case "Shipwreck":
+			structureOffset = 8;
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getMaxDistanceScatteredFeatures_Shipwreck(), (byte) 8,
 					versionFeatures.getValidBiomesAtMiddleOfChunk_Shipwreck(),
 					versionFeatures.getSeedForStructure_Shipwreck(), versionFeatures.getBuggyStructureCoordinateMath());
-		case "Swamp Hut": // works
+		case "Swamp Hut":
 			structureOffset = 8;
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesAtMiddleOfChunk_WitchHut(),
@@ -106,27 +121,32 @@ public class StructureFinder extends Thread {
 		case "Stronghold": // doesn't work at all
 			structureOffset = 0;
 			return versionFeatures.getMineshaftAlgorithmFactory().apply(seed.getLong());
-		case "Monument": // works
+		case "Monument":
 			structureOffset = 8;
 			return versionFeatures.getOceanMonumentLocationCheckerFactory().apply(seed.getLong(),
 					world.getBiomeDataOracle(), versionFeatures.getValidBiomesAtMiddleOfChunk_OceanMonument(),
 					versionFeatures.getValidBiomesForStructure_OceanMonument());
-		case "Ocean Ruin": // works
+		case "Ocean Ruin":
 			structureOffset = 8;
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(), (byte) 16, (byte) 8,
 					versionFeatures.getValidBiomesAtMiddleOfChunk_OceanRuins(),
 					versionFeatures.getSeedForStructure_OceanRuins(),
 					versionFeatures.getBuggyStructureCoordinateMath());
-		case "Nether Fortress": // doesn't work at all
+		case "Nether Fortress": // mostly works
 			structureOffset = 88;
 			return new NetherFortressAlgorithm(seed.getLong());
 		case "End City": // lots of false positives due to no influence implementation
 			structureOffset = 8;
 			return new EndCityLocationChecker(seed.getLong());
 		case "Buried Treasure":
+			structureOffset = 9;
 			return new BuriedTreasureLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesAtMiddleOfChunk_BuriedTreasure(),
 					versionFeatures.getSeedForStructure_BuriedTreasure());
+		case "Pillager Outpost":
+			structureOffset = 4;
+			return new PillagerOutpostLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
+					versionFeatures.getValidBiomesForStructure_PillagerOutpost());
 		default:
 			System.err.println(
 					"parseLocationChecker error: Input did not match any structure type, instead got " + structtype);
@@ -156,15 +176,20 @@ public class StructureFinder extends Thread {
 		try {
 			final MinecraftInstallation minecraftInstallation = MinecraftInstallation.newLocalMinecraftInstallation();
 			LauncherProfile launcherProfile = null;
-			launcherProfile = minecraftInstallation.newLauncherProfile("1.13.2");
+			launcherProfile = minecraftInstallation.newLauncherProfile("1.14.3");
 			mcInterface = MinecraftInterfaces.fromLocalProfile(launcherProfile);
 			worldBuilder = WorldBuilder.createSilentPlayerless();
 		} catch (FormatException | IOException | MinecraftInterfaceCreationException e) {
+			SwingUtilities.invokeLater(() -> {
+				Main.appendText("No 1.14.3 Minecraft profile detected, please launch 1.14.3 atleast once and try again", Color.RED);
+			});
 			e.printStackTrace();
 		}
 	}
 
 	public void scanForStructure(LocationChecker checker, CoordinatesInWorld start, int r) {
+		boolean flag1 = Main.isStructTypeNetherFortress();
+		boolean flag2 = Main.isCoordTypeNether();
 		for (long x = -r; x <= r; x++) {
 			int intX = (int) x;
 			SwingUtilities.invokeLater(() -> {
@@ -172,11 +197,16 @@ public class StructureFinder extends Thread {
 			});
 			for (long y = -r; y <= r; y++) {
 				if (checker.isValidLocation((int) (start.getX() + x), (int) (start.getY() + y))) {
-					CoordinatesInWorld newCoords = new CoordinatesInWorld(((start.getX() + x) << 4) + structureOffset,
-							((start.getY() + y) << 4) + structureOffset);
+					CoordinatesInWorld newCoords = new CoordinatesInWorld(
+							resolution.convertFromThisToWorld(start.getX() + x) + structureOffset,
+							resolution.convertFromThisToWorld(start.getY() + y) + structureOffset);
 					try {
 						SwingUtilities.invokeAndWait(() -> {
-							Main.appendText(newCoords.getX() + ", " + newCoords.getY());
+							if (flag1 && flag2) {
+								Main.appendText(newCoords.getXAs(Resolution.NETHER) + ", " + newCoords.getYAs(Resolution.NETHER));
+							} else {
+								Main.appendText(newCoords.getX() + ", " + newCoords.getY());
+							}
 						});
 					} catch (InvocationTargetException | InterruptedException e) {
 						e.printStackTrace();
@@ -190,15 +220,15 @@ public class StructureFinder extends Thread {
 	}
 
 	public void setSeed(String seed) {
-		this.worldSeed = WorldSeed.fromUserInput(seed);
+		worldSeed = WorldSeed.fromUserInput(seed);
 	}
 
 	public void setWorldType(String worldtype) {
-		this.worldType = parseWorldType(worldtype);
+		worldType = parseWorldType(worldtype);
 	}
 
 	public void setStructureType(String structuretype) {
-		this.structureType = structuretype;
+		structureType = structuretype;
 	}
 
 	public void setRadius(int radius) {
@@ -206,27 +236,27 @@ public class StructureFinder extends Thread {
 	}
 
 	public void setStartPos(CoordinatesInWorld start) {
-		this.startPos = start;
+		startPos = start;
 	}
 
 	public WorldSeed getSeed() {
-		return this.worldSeed;
+		return worldSeed;
 	}
 
 	public WorldType getWorldType() {
-		return this.worldType;
+		return worldType;
 	}
 
 	public String getStructureType() {
-		return this.structureType;
+		return structureType;
 	}
 
 	public int getRadius() {
-		return this.radius;
+		return radius;
 	}
 
 	public CoordinatesInWorld getStartPos() {
-		return this.startPos;
+		return startPos;
 	}
 
 }
