@@ -76,7 +76,7 @@ public class Main {
 		
 		jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		// jframe.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		jframe.setSize((int) (screenSize.width / 3.2), (int) (screenSize.height / 3.6));
+		jframe.setSize((int) (screenSize.getHeight() / 1.8), (int) (screenSize.getHeight() / 3.6));
 		jframe.setResizable(false);
 		jframe.add(jpanel);
 		
