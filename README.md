@@ -9,7 +9,7 @@ It relies on the [Amidst library](https://github.com/toolbox4minecraft/amidst) t
 
 - Easy to use
 - Much quicker than using plain Amidst or /locate
-- can get structures in bulk
+- Can get structures in bulk
 
 ## TODO's
 
