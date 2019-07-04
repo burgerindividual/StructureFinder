@@ -19,7 +19,7 @@ It relies on the [Amidst library](https://github.com/toolbox4minecraft/amidst) t
 - [x] Fix Nether Fortresses
 - [x] Add Buried Treasure Support
 - [x] Add Pillager Outpost Support
-- [ ] ~~Better multithreading based off core count~~ Worsens performance in most cases
+- [ ] ~~Better multithreading based off core count~~ (Worsens performance in most cases)
 
 ## Build Requirements
 
