@@ -2,3 +2,4 @@
 /logs/
 .gitattributes
 lib/logs/
+/target/

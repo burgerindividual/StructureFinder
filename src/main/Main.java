@@ -1,11 +1,16 @@
 package main;
 
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Toolkit;
+import java.io.File;
+import java.io.IOException;
 import java.text.ParseException;
 
 import javax.swing.BorderFactory;
@@ -22,8 +27,12 @@ import javax.swing.JTextPane;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
-import javax.swing.border.Border;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.plaf.basic.BasicProgressBarUI;
+import javax.swing.text.AbstractDocument;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.Style;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
@@ -37,7 +46,7 @@ public class Main {
 			"Jungle Temple", "Mansion", "Mineshaft", "Monument", "Nether Fortress", "Ocean Ruin", "Pillager Outpost",
 			"Shipwreck", "Stronghold", "Swamp Hut", "Village" };
 	public static final String[] WORLD_TYPES = { "Default", "Flat", "Large Biomes", "Amplified" };
-	public static final Border emptyBorder = BorderFactory.createEmptyBorder();
+	public static Font defaultFont = new Font(Font.decode(null).getName(), Font.PLAIN, 12);
 	private static JFrame jframe = new JFrame("Structure Finder");
 	private static JPanel jpanel = new JPanel(new GridBagLayout());
 	private static JComboBox<?> coordtypebox = new JComboBox<Object>(DIMENSIONS);
@@ -45,7 +54,7 @@ public class Main {
 	private static JComboBox<?> worldtypebox = new JComboBox<Object>(WORLD_TYPES);
 	private static JButton jbutton = new JButton("Run");
 	private static JTextField seed = new JTextField();
-	private static JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 6250, 1));
+	private static JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 62500, 1));
 	private static JSpinner startX = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
 	private static JSpinner startZ = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
 	private static JTextPane output = new JTextPane();
@@ -63,6 +72,21 @@ public class Main {
 	private static GridBagConstraints constraints = new GridBagConstraints();
 
 	public static void main(String[] args) {
+		System.out.println("Running from Java version " + System.getProperty("java.version"));
+		File path = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+		if (path.getName().contains(".jar") && !path.isDirectory()) {
+			if (args.length == 0) {
+				try {
+					Runtime.getRuntime().exec(new String[] { "java", "-XX:+UseParallelGC", "-XX:GCTimeRatio=19",
+							"-Xms64m", "-Xmx256m", "-jar", path.getName(), "test" });
+				} catch (IOException ioe) {
+					ioe.printStackTrace();
+				}
+				System.exit(0);
+			}
+		}
+		System.out.println(path);
+
 		StructureFinder.init();
 		sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
 				String.valueOf(structurebox.getSelectedItem()), (Integer) radius.getValue(),
@@ -108,7 +132,6 @@ public class Main {
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 2, 3, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lRadius, constraints);
 
-		progressbar.setForeground(new Color(120, 230, 90));
 		progressbar.setStringPainted(true);
 		setConstraints(insetDefault, GridBagConstraints.BOTH, 0, 0, 3, 1, 0, 0.05, GridBagConstraints.CENTER);
 		jpanel.add(progressbar, constraints);
@@ -140,19 +163,20 @@ public class Main {
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 0, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		seedPanel.add(lSeed, constraints);
 
+		((AbstractDocument) seed.getDocument()).setDocumentFilter(new LimitDocumentFilter(32));
 		setConstraints(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50,
 				GridBagConstraints.HORIZONTAL, 0, 1, 1, 1, 1, 0, GridBagConstraints.PAGE_END);
 		seedPanel.add(seed, constraints);
 
-		setConstraints(jframe.getHeight() / 8, 0, 0, 0, GridBagConstraints.BOTH, 0, 6, 2, 1, 0, 0.1,
+		jbutton.setFocusPainted(false);
+		setConstraints(0, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50,
+				GridBagConstraints.NONE, 1, 1, 1, 1, 0, 0.1, GridBagConstraints.PAGE_END);
+		seedPanel.add(jbutton, constraints);
+
+		setConstraints(jframe.getHeight() / 8, 0, 0, 0, GridBagConstraints.BOTH, 0, 6, 3, 1, 0, 0.1,
 				GridBagConstraints.PAGE_END);
 		jpanel.add(seedPanel, constraints);
 		// seed panel ends here
-
-		jbutton.setBorderPainted(false);
-		setConstraints(0, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50,
-				GridBagConstraints.NONE, 2, 6, 1, 1, 0, 0.1, GridBagConstraints.PAGE_END);
-		jpanel.add(jbutton, constraints);
 
 		output.setSize(scrollpane.getSize());
 		output.setEditable(false);
@@ -160,6 +184,28 @@ public class Main {
 		scrollpane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
 		setConstraints(insetDefault, GridBagConstraints.BOTH, 3, 0, 1, 7, 1, 1, GridBagConstraints.CENTER);
 		jpanel.add(scrollpane, constraints);
+
+		try {
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+			SwingUtilities.updateComponentTreeUI(jframe);
+			JFrame.setDefaultLookAndFeelDecorated(true);
+		} catch (Exception e) {
+		}
+		progressbar.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+		progressbar.setBackground(new Color(230, 230, 230));
+		progressbar.setForeground(new Color(120, 230, 90));
+		progressbar.setUI(new BasicProgressBarUI() {
+			@Override
+			protected Color getSelectionBackground() {
+				return new Color(50, 50, 50);
+			}
+
+			@Override
+			protected Color getSelectionForeground() {
+				return new Color(50, 50, 50);
+			}
+		});
+		changeFont(jpanel, defaultFont);
 
 		jframe.setVisible(true);
 	}
@@ -259,7 +305,7 @@ public class Main {
 
 	public static void appendText(String i) {
 		StyledDocument doc = output.getStyledDocument();
-		Style style = output.addStyle("", null);
+		SimpleAttributeSet style = new SimpleAttributeSet();
 		StyleConstants.setForeground(style, Color.BLACK);
 		try {
 			doc.insertString(doc.getLength(), i + "\n", style);
@@ -295,4 +341,22 @@ public class Main {
 		return String.valueOf(structurebox.getSelectedItem()).equals("Nether Fortress");
 	}
 
+	public static Throwable getCause(Throwable e) {
+		Throwable cause = null;
+		Throwable result = e;
+
+		while (null != (cause = result.getCause()) && (result != cause)) {
+			result = cause;
+		}
+		return result;
+	}
+
+	public static void changeFont(Component component, Font font) {
+		component.setFont(font);
+		if (component instanceof Container) {
+			for (Component child : ((Container) component).getComponents()) {
+				changeFont(child, font);
+			}
+		}
+	}
 }

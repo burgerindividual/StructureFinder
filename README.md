@@ -1,7 +1,7 @@
 # StructureFinder
 StructureFinder is a program that is built to find structures from a seed in Minecraft and list their coordinates.
 
-It relies on the [Amidst library](https://github.com/toolbox4minecraft/amidst) to do most of the work.
+It relies on [Amidst](https://github.com/toolbox4minecraft/amidst) used as a library do most of the work.
 
 ## [Releases](https://github.com/burgerguy/StructureFinder/releases/)
 
@@ -14,7 +14,7 @@ It relies on the [Amidst library](https://github.com/toolbox4minecraft/amidst) t
 ## TODO's
 
 - [ ] Sort by nearest
-- [ ] Make UI look better
+- [x] Make UI look better
 - [ ] Accurate End City finding through chunk generation
 - [x] Fix Nether Fortresses
 - [x] Add Buried Treasure Support
@@ -24,7 +24,13 @@ It relies on the [Amidst library](https://github.com/toolbox4minecraft/amidst) t
 
 ## Build Requirements
 
-- Eclipse Java (Preferably 2019-03)
+- [Eclipse Java](https://www.eclipse.org/downloads/packages/installer) (2019-06)
+- [Apache Maven 3.6.1](https://maven.apache.org/download.cgi)
 - All project files including libraries (/lib)
 
 In Eclipse, go to File > Open Projects from File System... and locate the project files. Then just click Finish.
+
+### Building the jar
+
+With maven downloaded and set up, enter the command `mvn clean compile assembly:single`
+The jar will be made in the /target directory

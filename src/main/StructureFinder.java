@@ -46,6 +46,7 @@ public class StructureFinder extends Thread {
 	private VersionFeatures versionFeatures;
 	private int structureOffset;
 	private Resolution resolution;
+	private CoordinatesInWorld newCoords = new CoordinatesInWorld(0, 0);
 
 	public StructureFinder(String seed, String worldtype, String structuretype, int radius, CoordinatesInWorld start,
 			Resolution resolution) {
@@ -63,16 +64,27 @@ public class StructureFinder extends Thread {
 		createWorld(worldSeed, worldType);
 		locationChecker = parseLocationChecker(structureType, worldSeed);
 		scanForStructure(locationChecker, startPos, radius);
+		world.dispose();
 	}
 
 	public void createWorld(WorldSeed seed, WorldType type) {
 		Consumer<World> onDispose = world -> {
-			world.dispose();
+			System.gc();
 		};
+//		Consumer<World> onDispose = new Consumer<World>() {
+//		    @Override
+//		    public void accept(World w) {
+//		    	System.gc();
+//		    }
+//		};
 		WorldOptions worldOptions = new WorldOptions(seed, type);
 		try {
 			world = worldBuilder.from(mcInterface, onDispose, worldOptions);
 		} catch (MinecraftInterfaceException e) {
+			SwingUtilities.invokeLater(() -> {
+				Main.appendText("Error Occurred, check stack trace for more details", Color.RED);
+			});
+			//System.out.println(Main.getCause(e).toString());
 			e.printStackTrace();
 		}
 	}
@@ -132,7 +144,7 @@ public class StructureFinder extends Thread {
 					versionFeatures.getValidBiomesAtMiddleOfChunk_OceanRuins(),
 					versionFeatures.getSeedForStructure_OceanRuins(),
 					versionFeatures.getBuggyStructureCoordinateMath());
-		case "Nether Fortress": // mostly works
+		case "Nether Fortress":
 			structureOffset = 88;
 			return new NetherFortressAlgorithm(seed.getLong());
 		case "End City": // lots of false positives due to no influence implementation
@@ -181,7 +193,8 @@ public class StructureFinder extends Thread {
 			worldBuilder = WorldBuilder.createSilentPlayerless();
 		} catch (FormatException | IOException | MinecraftInterfaceCreationException e) {
 			SwingUtilities.invokeLater(() -> {
-				Main.appendText("No 1.14.3 Minecraft profile detected, please launch 1.14.3 atleast once and try again", Color.RED);
+				Main.appendText("No 1.14.3 Minecraft profile detected, please launch 1.14.3 atleast once and try again",
+						Color.RED);
 			});
 			e.printStackTrace();
 		}
@@ -197,18 +210,24 @@ public class StructureFinder extends Thread {
 			});
 			for (long y = -r; y <= r; y++) {
 				if (checker.isValidLocation((int) (start.getX() + x), (int) (start.getY() + y))) {
-					CoordinatesInWorld newCoords = new CoordinatesInWorld(
+					newCoords = new CoordinatesInWorld(
 							resolution.convertFromThisToWorld(start.getX() + x) + structureOffset,
 							resolution.convertFromThisToWorld(start.getY() + y) + structureOffset);
 					try {
 						SwingUtilities.invokeAndWait(() -> {
 							if (flag1 && flag2) {
-								Main.appendText(newCoords.getXAs(Resolution.NETHER) + ", " + newCoords.getYAs(Resolution.NETHER));
+								Main.appendText(newCoords.getXAs(Resolution.NETHER) + ", "
+										+ newCoords.getYAs(Resolution.NETHER));
 							} else {
 								Main.appendText(newCoords.getX() + ", " + newCoords.getY());
 							}
 						});
 					} catch (InvocationTargetException | InterruptedException e) {
+						SwingUtilities.invokeLater(() -> {
+							Main.appendText(
+									"No 1.14.3 Minecraft profile detected, please launch 1.14.3 atleast once and try again",
+									Color.RED);
+						});
 						e.printStackTrace();
 					}
 				}
