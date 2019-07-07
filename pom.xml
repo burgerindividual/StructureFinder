@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>burgerguy</groupId>
   <artifactId>structurefinder</artifactId>
-  <version>v0.3a</version>
+  <version>v0.3.1a</version>
   <name>StructureFinder</name>
 	<repositories>
 		<repository>
@@ -18,7 +18,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.0</version>
         <configuration>
-          <release>11</release>
+          <source>1.8</source>
+          <target>1.8</target>
         </configuration>
       </plugin>
 	  <plugin>
