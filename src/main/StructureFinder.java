@@ -1,6 +1,5 @@
 package main;
 
-import java.awt.Color;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.function.Consumer;
@@ -71,20 +70,11 @@ public class StructureFinder extends Thread {
 		Consumer<World> onDispose = world -> {
 			System.gc();
 		};
-//		Consumer<World> onDispose = new Consumer<World>() {
-//		    @Override
-//		    public void accept(World w) {
-//		    	System.gc();
-//		    }
-//		};
 		WorldOptions worldOptions = new WorldOptions(seed, type);
 		try {
 			world = worldBuilder.from(mcInterface, onDispose, worldOptions);
 		} catch (MinecraftInterfaceException e) {
-			SwingUtilities.invokeLater(() -> {
-				Main.appendText("Error Occurred, check stack trace for more details", Color.RED);
-			});
-			//System.out.println(Main.getCause(e).toString());
+			Main.appendText("Error Occurred, check stack trace for more details");
 			e.printStackTrace();
 		}
 	}
@@ -192,10 +182,7 @@ public class StructureFinder extends Thread {
 			mcInterface = MinecraftInterfaces.fromLocalProfile(launcherProfile);
 			worldBuilder = WorldBuilder.createSilentPlayerless();
 		} catch (FormatException | IOException | MinecraftInterfaceCreationException e) {
-			SwingUtilities.invokeLater(() -> {
-				Main.appendText("No 1.14.3 Minecraft profile detected, please launch 1.14.3 atleast once and try again",
-						Color.RED);
-			});
+			Main.appendText("No 1.14.3 Minecraft profile detected, please launch 1.14.3 atleast once and try again");
 			e.printStackTrace();
 		}
 	}
@@ -204,38 +191,32 @@ public class StructureFinder extends Thread {
 		boolean flag1 = Main.isStructTypeNetherFortress();
 		boolean flag2 = Main.isCoordTypeNether();
 		for (long x = -r; x <= r; x++) {
-			int intX = (int) x;
-			SwingUtilities.invokeLater(() -> {
-				Main.getProgressBar().setValue(intX);
-			});
+			setProgress((int) x);
 			for (long y = -r; y <= r; y++) {
 				if (checker.isValidLocation((int) (start.getX() + x), (int) (start.getY() + y))) {
 					newCoords = new CoordinatesInWorld(
 							resolution.convertFromThisToWorld(start.getX() + x) + structureOffset,
 							resolution.convertFromThisToWorld(start.getY() + y) + structureOffset);
-					try {
-						SwingUtilities.invokeAndWait(() -> {
-							if (flag1 && flag2) {
-								Main.appendText(newCoords.getXAs(Resolution.NETHER) + ", "
-										+ newCoords.getYAs(Resolution.NETHER));
-							} else {
-								Main.appendText(newCoords.getX() + ", " + newCoords.getY());
-							}
-						});
-					} catch (InvocationTargetException | InterruptedException e) {
-						SwingUtilities.invokeLater(() -> {
-							Main.appendText(
-									"No 1.14.3 Minecraft profile detected, please launch 1.14.3 atleast once and try again",
-									Color.RED);
-						});
-						e.printStackTrace();
+					if (flag1 && flag2) {
+						Main.appendText(
+								newCoords.getXAs(Resolution.NETHER) + ", " + newCoords.getYAs(Resolution.NETHER));
+					} else {
+						Main.appendText(newCoords.getX() + ", " + newCoords.getY());
 					}
 				}
 			}
 		}
-		SwingUtilities.invokeLater(() -> {
-			Main.getProgressBar().setValue(Main.getProgressBar().getMinimum());
-		});
+		setProgress(Main.getProgressBar().getMinimum());
+	}
+
+	private void setProgress(int i) {
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				Main.getProgressBar().setValue(i);
+			});
+		} catch (InvocationTargetException | InterruptedException e) {
+			System.err.println(e.getClass().toString() + ": StructureFinder setProgress interrupted");
+		}
 	}
 
 	public void setSeed(String seed) {

@@ -22,8 +22,8 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import javax.swing.JTextPane;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
@@ -31,11 +31,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.plaf.basic.BasicProgressBarUI;
 import javax.swing.text.AbstractDocument;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.Style;
-import javax.swing.text.StyleConstants;
-import javax.swing.text.StyledDocument;
 
 import amidst.mojangapi.world.coordinates.CoordinatesInWorld;
 import amidst.mojangapi.world.coordinates.Resolution;
@@ -57,9 +52,9 @@ public class Main {
 	private static JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 62500, 1));
 	private static JSpinner startX = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
 	private static JSpinner startZ = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
-	private static JTextPane output = new JTextPane();
+	private static JTextArea output = new JTextArea();
 	private static JScrollPane scrollpane = new JScrollPane(output);
-	public static JProgressBar progressbar = new JProgressBar();
+	private static JProgressBar progressbar = new JProgressBar();
 	private static JLabel lRadius = new JLabel("Radius (Chunks)");
 	private static JLabel lStartX = new JLabel("Starting X Pos");
 	private static JLabel lStartZ = new JLabel("Starting Z Pos");
@@ -73,12 +68,13 @@ public class Main {
 
 	public static void main(String[] args) {
 		System.out.println("Running from Java version " + System.getProperty("java.version"));
+		System.out.println("Temp Directory: " + System.getProperty("java.io.tmpdir"));
 		File path = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 		if (path.getName().contains(".jar") && !path.isDirectory()) {
 			if (args.length == 0) {
 				try {
 					Runtime.getRuntime().exec(new String[] { "java", "-XX:+UseParallelGC", "-XX:GCTimeRatio=19",
-							"-Xms64m", "-Xmx256m", "-jar", path.getName(), "test" });
+							"-Xms64m", "-Xmx384m", "-jar", path.getName(), "test" });
 				} catch (IOException ioe) {
 					ioe.printStackTrace();
 				}
@@ -99,7 +95,6 @@ public class Main {
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 
 		jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		// jframe.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		jframe.setSize((int) (screenSize.getHeight() / 1.8), (int) (screenSize.getHeight() / 3.6));
 		jframe.setResizable(false);
 		jframe.add(jpanel);
@@ -178,13 +173,12 @@ public class Main {
 		jpanel.add(seedPanel, constraints);
 		// seed panel ends here
 
-		output.setSize(scrollpane.getSize());
 		output.setEditable(false);
 		scrollpane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		scrollpane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
 		setConstraints(insetDefault, GridBagConstraints.BOTH, 3, 0, 1, 7, 1, 1, GridBagConstraints.CENTER);
 		jpanel.add(scrollpane, constraints);
-
+		
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 			SwingUtilities.updateComponentTreeUI(jframe);
@@ -206,7 +200,7 @@ public class Main {
 			}
 		});
 		changeFont(jpanel, defaultFont);
-
+		scrollpane.setPreferredSize(scrollpane.getSize());
 		jframe.setVisible(true);
 	}
 
@@ -215,7 +209,6 @@ public class Main {
 			if (!seed.getText().trim().isEmpty()) {
 				Resolution res = getResolution();
 				try {
-					// TODO fix this
 					startX.setValue(
 							(int) res.convertFromThisToWorld(res.convertFromWorldToThis((int) startX.getValue())));
 					startZ.setValue(
@@ -251,7 +244,7 @@ public class Main {
 					}
 				}
 			} else {
-				appendText("Seed is empty", Color.RED);
+				appendText("Seed is empty");
 			}
 		});
 		structurebox.addActionListener((e) -> {
@@ -291,27 +284,8 @@ public class Main {
 		constraints.anchor = anchor;
 	}
 
-	public static void appendText(String i, Color c) {
-		StyledDocument doc = output.getStyledDocument();
-		Style style = output.addStyle("", null);
-		StyleConstants.setForeground(style, c);
-		try {
-			doc.insertString(doc.getLength(), i + "\n", style);
-		} catch (BadLocationException exc) {
-			exc.printStackTrace();
-		}
-		output.setCaretPosition(output.getDocument().getLength());
-	}
-
 	public static void appendText(String i) {
-		StyledDocument doc = output.getStyledDocument();
-		SimpleAttributeSet style = new SimpleAttributeSet();
-		StyleConstants.setForeground(style, Color.BLACK);
-		try {
-			doc.insertString(doc.getLength(), i + "\n", style);
-		} catch (BadLocationException exc) {
-			exc.printStackTrace();
-		}
+		output.append(i + "\n");
 		output.setCaretPosition(output.getDocument().getLength());
 	}
 
@@ -332,23 +306,17 @@ public class Main {
 	public static JProgressBar getProgressBar() {
 		return progressbar;
 	}
-
+	
+	public static JTextArea getTextArea() {
+		return output;
+	}
+	
 	public static boolean isCoordTypeNether() {
 		return String.valueOf(coordtypebox.getSelectedItem()).equals("Nether");
 	}
 
 	public static boolean isStructTypeNetherFortress() {
 		return String.valueOf(structurebox.getSelectedItem()).equals("Nether Fortress");
-	}
-
-	public static Throwable getCause(Throwable e) {
-		Throwable cause = null;
-		Throwable result = e;
-
-		while (null != (cause = result.getCause()) && (result != cause)) {
-			result = cause;
-		}
-		return result;
 	}
 
 	public static void changeFont(Component component, Font font) {
