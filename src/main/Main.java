@@ -49,7 +49,7 @@ public class Main {
 	private static JComboBox<?> worldtypebox = new JComboBox<Object>(WORLD_TYPES);
 	private static JButton jbutton = new JButton("Run");
 	private static JTextField seed = new JTextField();
-	private static JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 62500, 1));
+	private static JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 6250, 1));
 	private static JSpinner startX = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
 	private static JSpinner startZ = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
 	private static JTextArea output = new JTextArea();
