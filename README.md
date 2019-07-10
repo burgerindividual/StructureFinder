@@ -14,7 +14,7 @@ It relies on [Amidst](https://github.com/toolbox4minecraft/amidst) used as a lib
 ## TODO's
 
 - [ ] Add a logger
-- [ ] Sort by nearest
+- [x] Sort by nearest
 - [x] Make UI look better
 - [ ] Accurate End City finding through chunk generation
 - [x] Fix Nether Fortresses
