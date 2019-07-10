@@ -14,14 +14,13 @@ It relies on [Amidst](https://github.com/toolbox4minecraft/amidst) used as a lib
 ## TODO's
 
 - [ ] Add a logger
-- [ ] Sort by nearest
+- [x] Sort by nearest
 - [x] Make UI look better
 - [ ] Accurate End City finding through chunk generation
 - [x] Fix Nether Fortresses
 - [x] Add Buried Treasure Support
 - [x] Add Pillager Outpost Support
-- [x] Fix Strongholds
-- [ ] ~~Better multithreading based off core count~~ (Worsens performance in most cases)
+- [ ] Fix Strongholds
 
 ## Build Requirements
 
