@@ -2,6 +2,9 @@ package main;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 import javax.swing.SwingUtilities;
@@ -45,7 +48,6 @@ public class StructureFinder extends Thread {
 	private VersionFeatures versionFeatures;
 	private int structureOffset;
 	private Resolution resolution;
-	private CoordinatesInWorld newCoords = new CoordinatesInWorld(0, 0);
 
 	public StructureFinder(String seed, String worldtype, String structuretype, int radius, CoordinatesInWorld start,
 			Resolution resolution) {
@@ -188,22 +190,38 @@ public class StructureFinder extends Thread {
 	}
 
 	public void scanForStructure(LocationChecker checker, CoordinatesInWorld start, int r) {
+		List<SimpleEntry<CoordinatesInWorld, Double>> cdPairs = new ArrayList<>();
 		boolean flag1 = Main.isStructTypeNetherFortress();
 		boolean flag2 = Main.isCoordTypeNether();
 		for (long x = -r; x <= r; x++) {
 			setProgress((int) x);
 			for (long y = -r; y <= r; y++) {
 				if (checker.isValidLocation((int) (start.getX() + x), (int) (start.getY() + y))) {
-					newCoords = new CoordinatesInWorld(
+					CoordinatesInWorld newCoords = new CoordinatesInWorld(
 							resolution.convertFromThisToWorld(start.getX() + x) + structureOffset,
 							resolution.convertFromThisToWorld(start.getY() + y) + structureOffset);
-					if (flag1 && flag2) {
-						Main.appendText(
-								newCoords.getXAs(Resolution.NETHER) + ", " + newCoords.getYAs(Resolution.NETHER));
-					} else {
-						Main.appendText(newCoords.getX() + ", " + newCoords.getY());
+					cdPairs.add(new SimpleEntry<>(newCoords, newCoords.getDistance(start)));
+
+					int n = cdPairs.size() - 1;
+					SimpleEntry<CoordinatesInWorld, Double> key = cdPairs.get(n);
+					int j = n - 1;
+
+					while (j >= 0 && cdPairs.get(j).getValue() > key.getValue()) {
+						cdPairs.set(j + 1, cdPairs.get(j));
+						j = j - 1;
 					}
+					cdPairs.set(j + 1, key);
 				}
+			}
+		}
+		if (flag1 && flag2) {
+			for (SimpleEntry<CoordinatesInWorld, Double> entry : cdPairs) {
+				Main.appendText(
+						entry.getKey().getXAs(Resolution.NETHER) + ", " + entry.getKey().getYAs(Resolution.NETHER));
+			}
+		} else {
+			for (SimpleEntry<CoordinatesInWorld, Double> entry : cdPairs) {
+				Main.appendText(entry.getKey().getX() + ", " + entry.getKey().getY());
 			}
 		}
 		setProgress(Main.getProgressBar().getMinimum());

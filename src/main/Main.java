@@ -178,7 +178,7 @@ public class Main {
 		scrollpane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
 		setConstraints(insetDefault, GridBagConstraints.BOTH, 3, 0, 1, 7, 1, 1, GridBagConstraints.CENTER);
 		jpanel.add(scrollpane, constraints);
-		
+
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 			SwingUtilities.updateComponentTreeUI(jframe);
@@ -306,11 +306,11 @@ public class Main {
 	public static JProgressBar getProgressBar() {
 		return progressbar;
 	}
-	
+
 	public static JTextArea getTextArea() {
 		return output;
 	}
-	
+
 	public static boolean isCoordTypeNether() {
 		return String.valueOf(coordtypebox.getSelectedItem()).equals("Nether");
 	}
