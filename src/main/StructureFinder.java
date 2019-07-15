@@ -51,20 +51,21 @@ public class StructureFinder extends Thread {
 
 	public StructureFinder(String seed, String worldtype, String structuretype, int radius, CoordinatesInWorld start,
 			Resolution resolution) {
-		versionFeatures = DefaultVersionFeatures.create(RecognisedVersion._1_14_3);
-		worldSeed = WorldSeed.fromUserInput(seed);
-		worldType = parseWorldType(worldtype);
-		structureType = structuretype;
+		this.versionFeatures = DefaultVersionFeatures.create(RecognisedVersion._1_14_3);
+		this.worldSeed = WorldSeed.fromUserInput(seed);
+		this.worldType = parseWorldType(worldtype);
+		this.structureType = structuretype;
 		this.radius = radius;
-		startPos = start;
+		this.startPos = start;
 		this.resolution = resolution;
+		this.setName("StructureWorker");
 	}
 
 	@Override
 	public void run() {
 		createWorld(worldSeed, worldType);
 		locationChecker = parseLocationChecker(structureType, worldSeed);
-		scanForStructure(locationChecker, startPos, radius);
+		scanForStructure(locationChecker, startPos, resolution, radius);
 		world.dispose();
 	}
 
@@ -189,40 +190,55 @@ public class StructureFinder extends Thread {
 		}
 	}
 
-	public void scanForStructure(LocationChecker checker, CoordinatesInWorld start, int r) {
+	public void scanForStructure(LocationChecker checker, CoordinatesInWorld start, Resolution res, int r) {
 		List<SimpleEntry<CoordinatesInWorld, Double>> cdPairs = new ArrayList<>();
 		boolean flag1 = Main.isStructTypeNetherFortress();
 		boolean flag2 = Main.isCoordTypeNether();
+		CoordinatesInWorld newCoords = null;
 		for (long x = -r; x <= r; x++) {
 			setProgress((int) x);
 			for (long y = -r; y <= r; y++) {
-				if (checker.isValidLocation((int) (start.getX() + x), (int) (start.getY() + y))) {
-					CoordinatesInWorld newCoords = new CoordinatesInWorld(
-							resolution.convertFromThisToWorld(start.getX() + x) + structureOffset,
-							resolution.convertFromThisToWorld(start.getY() + y) + structureOffset);
-					cdPairs.add(new SimpleEntry<>(newCoords, newCoords.getDistance(start)));
+				if (flag1 && flag2) {
+					if (checker.isValidLocation((int) (start.getXAs(res) + x), (int) (start.getYAs(res) + y))) {
+						newCoords = CoordinatesInWorld.from(
+								start.getX() + res.convertFromThisToWorld(x)
+										+ Resolution.NETHER.convertFromWorldToThis(structureOffset),
+								start.getY() + res.convertFromThisToWorld(y)
+										+ Resolution.NETHER.convertFromWorldToThis(structureOffset));
+						cdPairs.add(new SimpleEntry<>(newCoords, start.getDistanceSq(newCoords)));
 
-					int n = cdPairs.size() - 1;
-					SimpleEntry<CoordinatesInWorld, Double> key = cdPairs.get(n);
-					int j = n - 1;
+						int n = cdPairs.size() - 1;
+						SimpleEntry<CoordinatesInWorld, Double> key = cdPairs.get(n);
+						int j = n - 1;
 
-					while (j >= 0 && cdPairs.get(j).getValue() > key.getValue()) {
-						cdPairs.set(j + 1, cdPairs.get(j));
-						j = j - 1;
+						while (j >= 0 && cdPairs.get(j).getValue() > key.getValue()) {
+							cdPairs.set(j + 1, cdPairs.get(j));
+							j = j - 1;
+						}
+						cdPairs.set(j + 1, key);
 					}
-					cdPairs.set(j + 1, key);
+				} else {
+					if (checker.isValidLocation((int) (start.getXAs(res) + x), (int) (start.getYAs(res) + y))) {
+						newCoords = CoordinatesInWorld.from(
+								start.getX() + res.convertFromThisToWorld(x) + structureOffset,
+								start.getY() + res.convertFromThisToWorld(y) + structureOffset);
+						cdPairs.add(new SimpleEntry<>(newCoords, start.getDistanceSq(newCoords)));
+
+						int n = cdPairs.size() - 1;
+						SimpleEntry<CoordinatesInWorld, Double> key = cdPairs.get(n);
+						int j = n - 1;
+
+						while (j >= 0 && cdPairs.get(j).getValue() > key.getValue()) {
+							cdPairs.set(j + 1, cdPairs.get(j));
+							j = j - 1;
+						}
+						cdPairs.set(j + 1, key);
+					}
 				}
 			}
 		}
-		if (flag1 && flag2) {
-			for (SimpleEntry<CoordinatesInWorld, Double> entry : cdPairs) {
-				Main.appendText(
-						entry.getKey().getXAs(Resolution.NETHER) + ", " + entry.getKey().getYAs(Resolution.NETHER));
-			}
-		} else {
-			for (SimpleEntry<CoordinatesInWorld, Double> entry : cdPairs) {
-				Main.appendText(entry.getKey().getX() + ", " + entry.getKey().getY());
-			}
+		for (SimpleEntry<CoordinatesInWorld, Double> entry : cdPairs) {
+			Main.appendText(entry.getKey().getX() + ", " + entry.getKey().getY());
 		}
 		setProgress(Main.getProgressBar().getMinimum());
 	}

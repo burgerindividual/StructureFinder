@@ -209,10 +209,13 @@ public class Main {
 			if (!seed.getText().trim().isEmpty()) {
 				Resolution res = getResolution();
 				try {
-					startX.setValue(
-							(int) res.convertFromThisToWorld(res.convertFromWorldToThis((int) startX.getValue())));
-					startZ.setValue(
-							(int) res.convertFromThisToWorld(res.convertFromWorldToThis((int) startZ.getValue())));
+					if (isStructTypeNetherFortress() && isCoordTypeNether()) {
+						startX.setValue((int) roundToRes(Resolution.NETHER_CHUNK, (int) startX.getValue()));
+						startZ.setValue((int) roundToRes(Resolution.NETHER_CHUNK, (int) startZ.getValue()));
+					} else {
+						startX.setValue((int) roundToRes(res, (int) startX.getValue()));
+						startZ.setValue((int) roundToRes(res, (int) startZ.getValue()));
+					}
 					radius.commitEdit();
 					startX.commitEdit();
 					startZ.commitEdit();
@@ -223,23 +226,17 @@ public class Main {
 					if (isStructTypeNetherFortress() && !isCoordTypeNether()) {
 						sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
 								String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue() >> 3,
-								CoordinatesInWorld.from((int) res.convertFromWorldToThis((int) startX.getValue()),
-										(int) res.convertFromWorldToThis((int) startZ.getValue())),
-								res);
+								CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res);
 						executeFinder();
-					} else if (isStructTypeNetherFortress() && isCoordTypeNether()) {
+					/*} else if (isStructTypeNetherFortress() && isCoordTypeNether()) {
 						sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
 								String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue(),
-								CoordinatesInWorld.from((int) res.convertFromWorldToThis((int) startX.getValue()) << 3,
-										(int) res.convertFromWorldToThis((int) startZ.getValue()) << 3),
-								res);
-						executeFinder();
+								CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res);
+						executeFinder();*/
 					} else {
 						sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
 								String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue(),
-								CoordinatesInWorld.from((int) res.convertFromWorldToThis((int) startX.getValue()),
-										(int) res.convertFromWorldToThis((int) startZ.getValue())),
-								res);
+								CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res);
 						executeFinder();
 					}
 				}
@@ -290,7 +287,7 @@ public class Main {
 	}
 
 	private static Resolution getResolution() {
-		if (String.valueOf(structurebox.getSelectedItem()).equals("Nether Fortress")) {
+		if (isStructTypeNetherFortress() && !isCoordTypeNether()) {
 			return Resolution.NETHER_CHUNK;
 		}
 		return Resolution.CHUNK;
@@ -319,12 +316,16 @@ public class Main {
 		return String.valueOf(structurebox.getSelectedItem()).equals("Nether Fortress");
 	}
 
-	public static void changeFont(Component component, Font font) {
+	private static void changeFont(Component component, Font font) {
 		component.setFont(font);
 		if (component instanceof Container) {
 			for (Component child : ((Container) component).getComponents()) {
 				changeFont(child, font);
 			}
 		}
+	}
+
+	public static long roundToRes(Resolution r, int coord) {
+		return r.convertFromThisToWorld(r.convertFromWorldToThis(coord));
 	}
 }
