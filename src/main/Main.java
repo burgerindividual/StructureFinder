@@ -11,13 +11,17 @@ import java.awt.Insets;
 import java.awt.Toolkit;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.text.ParseException;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
@@ -32,26 +36,31 @@ import javax.swing.UIManager;
 import javax.swing.plaf.basic.BasicProgressBarUI;
 import javax.swing.text.AbstractDocument;
 
+import amidst.mojangapi.minecraftinterface.RecognisedVersion;
 import amidst.mojangapi.world.coordinates.CoordinatesInWorld;
 import amidst.mojangapi.world.coordinates.Resolution;
 
 public class Main {
+	public static final RecognisedVersion VERSION = RecognisedVersion._1_14_3;
 	public static final String[] DIMENSIONS = { "Nether", "Overworld" };
 	public static final String[] STRUCTURE_TYPES = { "Buried Treasure", "Desert Temple", "End City", "Igloo",
 			"Jungle Temple", "Mansion", "Mineshaft", "Monument", "Nether Fortress", "Ocean Ruin", "Pillager Outpost",
 			"Shipwreck", "Stronghold", "Swamp Hut", "Village" };
 	public static final String[] WORLD_TYPES = { "Default", "Flat", "Large Biomes", "Amplified" };
+	public static final Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 	public static Font defaultFont = new Font(Font.decode(null).getName(), Font.PLAIN, 12);
 	private static JFrame jframe = new JFrame("Structure Finder");
 	private static JPanel jpanel = new JPanel(new GridBagLayout());
-	private static JComboBox<?> coordtypebox = new JComboBox<Object>(DIMENSIONS);
-	private static JComboBox<?> structurebox = new JComboBox<>(STRUCTURE_TYPES);
-	private static JComboBox<?> worldtypebox = new JComboBox<Object>(WORLD_TYPES);
+	private static JComboBox<String> coordtypebox = new JComboBox<String>(DIMENSIONS);
+	private static JComboBox<String> structurebox = new JComboBox<String>(STRUCTURE_TYPES);
+	private static JComboBox<String> worldtypebox = new JComboBox<String>(WORLD_TYPES);
 	private static JButton jbutton = new JButton("Run");
 	private static JTextField seed = new JTextField();
 	private static JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 6250, 1));
 	private static JSpinner startX = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
 	private static JSpinner startZ = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
+	private static JCheckBox checkbox = new JCheckBox("Include Unlikely End Cities", false);
+	private static JPanel checkboxpanel = new JPanel(new GridBagLayout());
 	private static JTextArea output = new JTextArea();
 	private static JScrollPane scrollpane = new JScrollPane(output);
 	private static JProgressBar progressbar = new JProgressBar();
@@ -67,6 +76,7 @@ public class Main {
 	private static GridBagConstraints constraints = new GridBagConstraints();
 
 	public static void main(String[] args) {
+
 		System.out.println("Running from Java version " + System.getProperty("java.version"));
 		System.out.println("Temp Directory: " + System.getProperty("java.io.tmpdir"));
 		File path = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().getPath());
@@ -76,7 +86,7 @@ public class Main {
 					Runtime.getRuntime().exec(new String[] { "java", "-XX:+UseParallelGC", "-XX:GCTimeRatio=19",
 							"-Xms64m", "-Xmx384m", "-jar", path.getName(), "test" });
 				} catch (IOException ioe) {
-					ioe.printStackTrace();
+					errorProcedure(ioe);
 				}
 				System.exit(0);
 			}
@@ -86,14 +96,12 @@ public class Main {
 		StructureFinder.init();
 		sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
 				String.valueOf(structurebox.getSelectedItem()), (Integer) radius.getValue(),
-				CoordinatesInWorld.from((int) startX.getValue(), (int) startX.getValue()), Resolution.CHUNK);
+				CoordinatesInWorld.from((int) startX.getValue(), (int) startX.getValue()), Resolution.CHUNK, false);
 		swingSetup();
 		initListeners();
 	}
 
-	public static void swingSetup() {
-		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-
+	private static void swingSetup() {
 		jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		jframe.setSize((int) (screenSize.getHeight() / 1.8), (int) (screenSize.getHeight() / 3.6));
 		jframe.setResizable(false);
@@ -152,6 +160,17 @@ public class Main {
 		radius.setPreferredSize(coordtypebox.getPreferredSize());
 		setConstraints(insetDefault, GridBagConstraints.NONE, 2, 4, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(radius, constraints);
+		
+		// add jpanel for checkbox to not resize things when it comes into view
+		checkbox.setVisible(false);
+		checkbox.setFocusPainted(false);
+		setConstraints(0, 0, 0, 0, GridBagConstraints.NONE, 0, 0, 0, 0, 0, 0, GridBagConstraints.CENTER);
+		checkboxpanel.add(checkbox, constraints);
+		
+		checkboxpanel.setPreferredSize(checkbox.getPreferredSize());
+		setConstraints(0, 0, 0, 0, GridBagConstraints.NONE, 0, 6, 3, 1, 0, 0, GridBagConstraints.CENTER);
+		jpanel.add(checkboxpanel, constraints);
+		// checkbox panel ends here
 
 		// seperate panel for seed so text is aligned
 		lSeed.setHorizontalAlignment(SwingConstants.CENTER);
@@ -159,7 +178,7 @@ public class Main {
 		seedPanel.add(lSeed, constraints);
 
 		((AbstractDocument) seed.getDocument()).setDocumentFilter(new LimitDocumentFilter(32));
-		setConstraints(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50,
+		setConstraints(0, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50,
 				GridBagConstraints.HORIZONTAL, 0, 1, 1, 1, 1, 0, GridBagConstraints.PAGE_END);
 		seedPanel.add(seed, constraints);
 
@@ -168,7 +187,7 @@ public class Main {
 				GridBagConstraints.NONE, 1, 1, 1, 1, 0, 0.1, GridBagConstraints.PAGE_END);
 		seedPanel.add(jbutton, constraints);
 
-		setConstraints(jframe.getHeight() / 8, 0, 0, 0, GridBagConstraints.BOTH, 0, 6, 3, 1, 0, 0.1,
+		setConstraints(jframe.getHeight() / 20, 0, 0, 0, GridBagConstraints.BOTH, 0, 7, 3, 1, 0, 0.1,
 				GridBagConstraints.PAGE_END);
 		jpanel.add(seedPanel, constraints);
 		// seed panel ends here
@@ -176,7 +195,7 @@ public class Main {
 		output.setEditable(false);
 		scrollpane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		scrollpane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-		setConstraints(insetDefault, GridBagConstraints.BOTH, 3, 0, 1, 7, 1, 1, GridBagConstraints.CENTER);
+		setConstraints(insetDefault, GridBagConstraints.BOTH, 3, 0, 1, 8, 1, 1, GridBagConstraints.CENTER);
 		jpanel.add(scrollpane, constraints);
 
 		try {
@@ -184,6 +203,7 @@ public class Main {
 			SwingUtilities.updateComponentTreeUI(jframe);
 			JFrame.setDefaultLookAndFeelDecorated(true);
 		} catch (Exception e) {
+			errorProcedure(e);
 		}
 		progressbar.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
 		progressbar.setBackground(new Color(230, 230, 230));
@@ -220,23 +240,21 @@ public class Main {
 					startX.commitEdit();
 					startZ.commitEdit();
 				} catch (ParseException e1) {
-					e1.printStackTrace();
+					errorProcedure(e1);
 				}
 				if (!sf.isAlive()) {
+					setIntermediate(true);
 					if (isStructTypeNetherFortress() && !isCoordTypeNether()) {
 						sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
 								String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue() >> 3,
-								CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res);
+								CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res,
+								checkbox.isSelected());
 						executeFinder();
-					/*} else if (isStructTypeNetherFortress() && isCoordTypeNether()) {
-						sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
-								String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue(),
-								CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res);
-						executeFinder();*/
 					} else {
 						sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
 								String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue(),
-								CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res);
+								CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res,
+								checkbox.isSelected());
 						executeFinder();
 					}
 				}
@@ -251,6 +269,11 @@ public class Main {
 			} else {
 				lCoordType.setEnabled(false);
 				coordtypebox.setEnabled(false);
+			}
+			if(String.valueOf(structurebox.getSelectedItem()).equals("End City")) {
+				checkbox.setVisible(true);
+			} else {
+				checkbox.setVisible(false);
 			}
 		});
 	}
@@ -295,8 +318,14 @@ public class Main {
 
 	public static void executeFinder() {
 		output.setText("");
-		progressbar.setMinimum(-(Integer) radius.getValue());
-		progressbar.setMaximum((Integer) radius.getValue());
+		if (String.valueOf(structurebox.getSelectedItem()).equals("Stronghold")) {
+			progressbar.setMinimum(0);
+			progressbar.setMaximum(127);
+		} else {
+			progressbar.setMinimum(-(Integer) radius.getValue());
+			progressbar.setMaximum((Integer) radius.getValue());
+		}
+		progressbar.setValue(progressbar.getMinimum());
 		sf.start();
 	}
 
@@ -327,5 +356,56 @@ public class Main {
 
 	public static long roundToRes(Resolution r, int coord) {
 		return r.convertFromThisToWorld(r.convertFromWorldToThis(coord));
+	}
+
+	public static void errorProcedure(Exception e) {
+		e.printStackTrace();
+		SwingUtilities.invokeLater(() -> {
+			final JTextArea textArea = new JTextArea();
+			textArea.setFont(new Font(Font.decode(null).getName(), Font.PLAIN, 10));
+			textArea.setEditable(false);
+			StringWriter writer = new StringWriter();
+			e.printStackTrace(new PrintWriter(writer));
+			textArea.setText(writer.toString());
+
+			JScrollPane scrollPane = new JScrollPane(textArea);
+			scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+			scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+			scrollPane.setPreferredSize(
+					new Dimension((int) (screenSize.getHeight() / 4), (int) (screenSize.getHeight() / 9)));
+
+			JOptionPane.showMessageDialog(jframe, scrollPane, "Structure Finder: Error", JOptionPane.ERROR_MESSAGE);
+		});
+	}
+
+	public static void errorProcedure(String s) {
+		System.err.print(s);
+		SwingUtilities.invokeLater(() -> {
+			final JTextArea textArea = new JTextArea();
+			textArea.setFont(new Font(Font.decode(null).getName(), Font.PLAIN, 10));
+			textArea.setEditable(false);
+			textArea.setWrapStyleWord(true);
+			textArea.setLineWrap(true);
+			textArea.setText(s);
+
+			JScrollPane scrollPane = new JScrollPane(textArea);
+			scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+			scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+			scrollPane.setPreferredSize(
+					new Dimension((int) (screenSize.getHeight() / 5), (int) (screenSize.getHeight() / 14.4)));
+
+			JOptionPane.showMessageDialog(jframe, scrollPane, "Structure Finder: Error", JOptionPane.ERROR_MESSAGE);
+		});
+	}
+
+	public static void setIntermediate(boolean b) {
+		SwingUtilities.invokeLater(() -> {
+			if (b) {
+				progressbar.setString("");
+			} else {
+				progressbar.setString(null);
+			}
+			progressbar.setIndeterminate(b);
+		});
 	}
 }

@@ -6,6 +6,7 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import javax.swing.SwingUtilities;
 
@@ -15,7 +16,6 @@ import amidst.mojangapi.minecraftinterface.MinecraftInterface;
 import amidst.mojangapi.minecraftinterface.MinecraftInterfaceCreationException;
 import amidst.mojangapi.minecraftinterface.MinecraftInterfaceException;
 import amidst.mojangapi.minecraftinterface.MinecraftInterfaces;
-import amidst.mojangapi.minecraftinterface.RecognisedVersion;
 import amidst.mojangapi.world.World;
 import amidst.mojangapi.world.WorldBuilder;
 import amidst.mojangapi.world.WorldOptions;
@@ -24,61 +24,69 @@ import amidst.mojangapi.world.WorldType;
 import amidst.mojangapi.world.coordinates.CoordinatesInWorld;
 import amidst.mojangapi.world.coordinates.Resolution;
 import amidst.mojangapi.world.icon.locationchecker.BuriedTreasureLocationChecker;
-import amidst.mojangapi.world.icon.locationchecker.EndCityLocationChecker;
 import amidst.mojangapi.world.icon.locationchecker.LocationChecker;
 import amidst.mojangapi.world.icon.locationchecker.NetherFortressAlgorithm;
 import amidst.mojangapi.world.icon.locationchecker.PillagerOutpostLocationChecker;
 import amidst.mojangapi.world.icon.locationchecker.ScatteredFeaturesLocationChecker;
 import amidst.mojangapi.world.icon.locationchecker.VillageLocationChecker;
 import amidst.mojangapi.world.icon.locationchecker.WoodlandMansionLocationChecker;
+import amidst.mojangapi.world.icon.producer.StrongholdProducer_128Algorithm;
 import amidst.mojangapi.world.versionfeatures.DefaultVersionFeatures;
 import amidst.mojangapi.world.versionfeatures.VersionFeatures;
 import amidst.parsing.FormatException;
 
 public class StructureFinder extends Thread {
-	private static WorldBuilder worldBuilder;
-	private WorldSeed worldSeed;
-	private WorldType worldType;
-	private String structureType;
-	private LocationChecker locationChecker;
-	private int radius;
-	private CoordinatesInWorld startPos;
+	private final WorldSeed worldSeed;
+	private final WorldType worldType;
+	private final String structureType;
+	private final int radius;
+	private final CoordinatesInWorld startPos;
+	private final VersionFeatures versionFeatures;
+	private final Resolution resolution;
+	private final boolean unlikelyEndCities;
 	private static MinecraftInterface mcInterface;
+	private static WorldBuilder worldBuilder;
+	private LocationChecker locationChecker;
 	private World world;
-	private VersionFeatures versionFeatures;
 	private int structureOffset;
-	private Resolution resolution;
+	private boolean isStrongholdSearch = false;
 
-	public StructureFinder(String seed, String worldtype, String structuretype, int radius, CoordinatesInWorld start,
-			Resolution resolution) {
-		this.versionFeatures = DefaultVersionFeatures.create(RecognisedVersion._1_14_3);
-		this.worldSeed = WorldSeed.fromUserInput(seed);
-		this.worldType = parseWorldType(worldtype);
-		this.structureType = structuretype;
+	public StructureFinder(String worldSeed, String worldType, String structureType, int radius, CoordinatesInWorld startPos,
+			Resolution resolution, boolean unlikelyEndCities) {
+		versionFeatures = DefaultVersionFeatures.create(Main.VERSION);
+		this.worldSeed = WorldSeed.fromUserInput(worldSeed);
+		this.worldType = parseWorldType(worldType);
+		this.structureType = structureType;
 		this.radius = radius;
-		this.startPos = start;
+		this.startPos = startPos;
 		this.resolution = resolution;
-		this.setName("StructureWorker");
+		this.unlikelyEndCities = unlikelyEndCities;
+		setName("StructureWorker");
 	}
 
 	@Override
 	public void run() {
 		createWorld(worldSeed, worldType);
 		locationChecker = parseLocationChecker(structureType, worldSeed);
-		scanForStructure(locationChecker, startPos, resolution, radius);
+		Main.setIntermediate(false);
+		if (!isStrongholdSearch) {
+			scanForStructure(locationChecker, startPos, resolution, radius);
+		} else {
+			strongholdSearch(worldSeed.getLong(), radius, startPos);
+		}
 		world.dispose();
 	}
 
 	public void createWorld(WorldSeed seed, WorldType type) {
 		Consumer<World> onDispose = world -> {
+			world = null;
 			System.gc();
 		};
 		WorldOptions worldOptions = new WorldOptions(seed, type);
 		try {
 			world = worldBuilder.from(mcInterface, onDispose, worldOptions);
 		} catch (MinecraftInterfaceException e) {
-			Main.appendText("Error Occurred, check stack trace for more details");
-			e.printStackTrace();
+			Main.errorProcedure(e);
 		}
 	}
 
@@ -123,9 +131,10 @@ public class StructureFinder extends Thread {
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesAtMiddleOfChunk_WitchHut(),
 					versionFeatures.getSeedForStructure_WitchHut(), versionFeatures.getBuggyStructureCoordinateMath());
-		case "Stronghold": // doesn't work at all
-			structureOffset = 0;
-			return versionFeatures.getMineshaftAlgorithmFactory().apply(seed.getLong());
+		case "Stronghold":
+			structureOffset = 4;
+			isStrongholdSearch = true;
+			return null;
 		case "Monument":
 			structureOffset = 8;
 			return versionFeatures.getOceanMonumentLocationCheckerFactory().apply(seed.getLong(),
@@ -140,9 +149,9 @@ public class StructureFinder extends Thread {
 		case "Nether Fortress":
 			structureOffset = 88;
 			return new NetherFortressAlgorithm(seed.getLong());
-		case "End City": // lots of false positives due to no influence implementation
+		case "End City":
 			structureOffset = 8;
-			return new EndCityLocationChecker(seed.getLong());
+			return new RefinedEndCityLocationChecker(seed.getLong(), world.getEndIslandOracle(), unlikelyEndCities);
 		case "Buried Treasure":
 			structureOffset = 9;
 			return new BuriedTreasureLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
@@ -153,7 +162,7 @@ public class StructureFinder extends Thread {
 			return new PillagerOutpostLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesForStructure_PillagerOutpost());
 		default:
-			System.err.println(
+			Main.errorProcedure(
 					"parseLocationChecker error: Input did not match any structure type, instead got " + structtype);
 			break;
 		}
@@ -171,7 +180,7 @@ public class StructureFinder extends Thread {
 		case "Amplified":
 			return WorldType.AMPLIFIED;
 		default:
-			System.err.println("parseWorldType error: Input did not match any world type, instead got " + worldtype);
+			Main.errorProcedure("parseWorldType error: Input did not match any world type, instead got " + worldtype);
 			break;
 		}
 		return null;
@@ -181,17 +190,51 @@ public class StructureFinder extends Thread {
 		try {
 			final MinecraftInstallation minecraftInstallation = MinecraftInstallation.newLocalMinecraftInstallation();
 			LauncherProfile launcherProfile = null;
-			launcherProfile = minecraftInstallation.newLauncherProfile("1.14.3");
+			launcherProfile = minecraftInstallation.newLauncherProfile(Main.VERSION.getName());
 			mcInterface = MinecraftInterfaces.fromLocalProfile(launcherProfile);
 			worldBuilder = WorldBuilder.createSilentPlayerless();
 		} catch (FormatException | IOException | MinecraftInterfaceCreationException e) {
-			Main.appendText("No 1.14.3 Minecraft profile detected, please launch 1.14.3 atleast once and try again");
-			e.printStackTrace();
+			Main.errorProcedure("No " + Main.VERSION.getName() + " Minecraft profile detected, please launch "
+					+ Main.VERSION.getName() + " atleast once and try again");
 		}
 	}
 
+	private void strongholdSearch(long seed, int radius, CoordinatesInWorld start) {
+		StrongholdProducer_128Algorithm shp = new StrongholdProducer_128Algorithm(seed, world.getBiomeDataOracle(),
+				versionFeatures.getValidBiomesAtMiddleOfChunk_Stronghold());
+		List<CoordinatesInWorld> coords = shp.getWorldIcons().stream().map(icon -> icon.getCoordinates())
+				.collect(Collectors.toList());
+		List<SimpleEntry<CoordinatesInWorld, Double>> cdPairs = new ArrayList<SimpleEntry<CoordinatesInWorld, Double>>();
+		int cradius = radius << 4;
+		int i = 0;
+		for (CoordinatesInWorld coord : coords) {
+			setProgress(i);
+			if ((coord.getX() > start.getX() - cradius && coord.getX() < start.getX() + cradius)
+					&& (coord.getY() > start.getY() - cradius && coord.getY() < start.getY() + cradius)) {
+				CoordinatesInWorld newCoord = CoordinatesInWorld.from(coord.getX() + structureOffset,
+						coord.getY() + structureOffset);
+				cdPairs.add(new SimpleEntry<>(newCoord, start.getDistanceSq(newCoord)));
+
+				int n = cdPairs.size() - 1;
+				SimpleEntry<CoordinatesInWorld, Double> key = cdPairs.get(n);
+				int j = n - 1;
+
+				while (j >= 0 && cdPairs.get(j).getValue() > key.getValue()) {
+					cdPairs.set(j + 1, cdPairs.get(j));
+					j = j - 1;
+				}
+				cdPairs.set(j + 1, key);
+			}
+			i++;
+		}
+		for (SimpleEntry<CoordinatesInWorld, Double> entry : cdPairs) {
+			Main.appendText(entry.getKey().getX() + ", " + entry.getKey().getY());
+		}
+		setProgress(Main.getProgressBar().getMinimum());
+	}
+
 	public void scanForStructure(LocationChecker checker, CoordinatesInWorld start, Resolution res, int r) {
-		List<SimpleEntry<CoordinatesInWorld, Double>> cdPairs = new ArrayList<>();
+		List<SimpleEntry<CoordinatesInWorld, Double>> cdPairs = new ArrayList<SimpleEntry<CoordinatesInWorld, Double>>();
 		boolean flag1 = Main.isStructTypeNetherFortress();
 		boolean flag2 = Main.isCoordTypeNether();
 		CoordinatesInWorld newCoords = null;
@@ -238,7 +281,7 @@ public class StructureFinder extends Thread {
 			}
 		}
 		for (SimpleEntry<CoordinatesInWorld, Double> entry : cdPairs) {
-			Main.appendText(entry.getKey().getX() + ", " + entry.getKey().getY());
+			Main.appendText(entry.getKey().getX() + ", " + entry.getKey().getY()); // appendText IS thread safe
 		}
 		setProgress(Main.getProgressBar().getMinimum());
 	}
@@ -249,28 +292,8 @@ public class StructureFinder extends Thread {
 				Main.getProgressBar().setValue(i);
 			});
 		} catch (InvocationTargetException | InterruptedException e) {
-			System.err.println(e.getClass().toString() + ": StructureFinder setProgress interrupted");
+			Main.errorProcedure(e);
 		}
-	}
-
-	public void setSeed(String seed) {
-		worldSeed = WorldSeed.fromUserInput(seed);
-	}
-
-	public void setWorldType(String worldtype) {
-		worldType = parseWorldType(worldtype);
-	}
-
-	public void setStructureType(String structuretype) {
-		structureType = structuretype;
-	}
-
-	public void setRadius(int radius) {
-		this.radius = radius;
-	}
-
-	public void setStartPos(CoordinatesInWorld start) {
-		startPos = start;
 	}
 
 	public WorldSeed getSeed() {
