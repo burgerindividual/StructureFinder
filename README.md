@@ -26,7 +26,6 @@ It relies on [Amidst](https://github.com/toolbox4minecraft/amidst) used as a lib
 - [Java 1.8](https://www.java.com/en/download/windows-64bit.jsp) or newer
 - [Eclipse Java](https://www.eclipse.org/downloads/packages/installer) (2019-06)
 - [Apache Maven 3.6.1](https://maven.apache.org/download.cgi)
-- All project files including libraries (/lib)
 
 In Eclipse, go to File > Open Projects from File System... and locate the project files. Then just click Finish.
 
