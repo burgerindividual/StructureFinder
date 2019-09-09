@@ -16,6 +16,7 @@ import amidst.mojangapi.minecraftinterface.MinecraftInterface;
 import amidst.mojangapi.minecraftinterface.MinecraftInterfaceCreationException;
 import amidst.mojangapi.minecraftinterface.MinecraftInterfaceException;
 import amidst.mojangapi.minecraftinterface.MinecraftInterfaces;
+import amidst.mojangapi.minecraftinterface.RecognisedVersion;
 import amidst.mojangapi.world.World;
 import amidst.mojangapi.world.WorldBuilder;
 import amidst.mojangapi.world.WorldOptions;
@@ -36,24 +37,25 @@ import amidst.mojangapi.world.versionfeatures.VersionFeatures;
 import amidst.parsing.FormatException;
 
 public class StructureFinder extends Thread {
+	private static VersionFeatures versionFeatures;
+	private static MinecraftInterface mcInterface;
+	private static WorldBuilder worldBuilder;
 	private final WorldSeed worldSeed;
 	private final WorldType worldType;
 	private final String structureType;
 	private final int radius;
 	private final CoordinatesInWorld startPos;
-	private final VersionFeatures versionFeatures;
+
 	private final Resolution resolution;
 	private final boolean unlikelyEndCities;
-	private static MinecraftInterface mcInterface;
-	private static WorldBuilder worldBuilder;
+
 	private LocationChecker locationChecker;
 	private World world;
 	private int structureOffset;
 	private boolean isStrongholdSearch = false;
 
-	public StructureFinder(String worldSeed, String worldType, String structureType, int radius, CoordinatesInWorld startPos,
-			Resolution resolution, boolean unlikelyEndCities) {
-		versionFeatures = DefaultVersionFeatures.create(Main.VERSION);
+	public StructureFinder(String worldSeed, String worldType, String structureType, int radius,
+			CoordinatesInWorld startPos, Resolution resolution, boolean unlikelyEndCities) {
 		this.worldSeed = WorldSeed.fromUserInput(worldSeed);
 		this.worldType = parseWorldType(worldType);
 		this.structureType = structureType;
@@ -66,6 +68,7 @@ public class StructureFinder extends Thread {
 
 	@Override
 	public void run() {
+		Main.setChangeVersions(false);
 		createWorld(worldSeed, worldType);
 		locationChecker = parseLocationChecker(structureType, worldSeed);
 		Main.setIntermediate(false);
@@ -75,6 +78,7 @@ public class StructureFinder extends Thread {
 			strongholdSearch(worldSeed.getLong(), radius, startPos);
 		}
 		world.dispose();
+		Main.setChangeVersions(true);
 	}
 
 	public void createWorld(WorldSeed seed, WorldType type) {
@@ -86,7 +90,7 @@ public class StructureFinder extends Thread {
 		try {
 			world = worldBuilder.from(mcInterface, onDispose, worldOptions);
 		} catch (MinecraftInterfaceException e) {
-			Main.errorProcedure(e);
+			Main.errorProcedure(e, false);
 		}
 	}
 
@@ -126,7 +130,7 @@ public class StructureFinder extends Thread {
 					versionFeatures.getMaxDistanceScatteredFeatures_Shipwreck(), (byte) 8,
 					versionFeatures.getValidBiomesAtMiddleOfChunk_Shipwreck(),
 					versionFeatures.getSeedForStructure_Shipwreck(), versionFeatures.getBuggyStructureCoordinateMath());
-		case "Swamp Hut":
+		case "Witch Hut":
 			structureOffset = 8;
 			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
 					versionFeatures.getValidBiomesAtMiddleOfChunk_WitchHut(),
@@ -135,7 +139,7 @@ public class StructureFinder extends Thread {
 			structureOffset = 4;
 			isStrongholdSearch = true;
 			return null;
-		case "Monument":
+		case "Ocean Monument":
 			structureOffset = 8;
 			return versionFeatures.getOceanMonumentLocationCheckerFactory().apply(seed.getLong(),
 					world.getBiomeDataOracle(), versionFeatures.getValidBiomesAtMiddleOfChunk_OceanMonument(),
@@ -163,7 +167,7 @@ public class StructureFinder extends Thread {
 					versionFeatures.getValidBiomesForStructure_PillagerOutpost());
 		default:
 			Main.errorProcedure(
-					"parseLocationChecker error: Input did not match any structure type, instead got " + structtype);
+					"parseLocationChecker error: Input did not match any structure type, instead got " + structtype, false);
 			break;
 		}
 		return null;
@@ -180,23 +184,19 @@ public class StructureFinder extends Thread {
 		case "Amplified":
 			return WorldType.AMPLIFIED;
 		default:
-			Main.errorProcedure("parseWorldType error: Input did not match any world type, instead got " + worldtype);
+			Main.errorProcedure("parseWorldType error: Input did not match any world type, instead got " + worldtype, false);
 			break;
 		}
 		return null;
 	}
 
-	public static void init() {
-		try {
-			final MinecraftInstallation minecraftInstallation = MinecraftInstallation.newLocalMinecraftInstallation();
-			LauncherProfile launcherProfile = null;
-			launcherProfile = minecraftInstallation.newLauncherProfile(Main.VERSION.getName());
-			mcInterface = MinecraftInterfaces.fromLocalProfile(launcherProfile);
-			worldBuilder = WorldBuilder.createSilentPlayerless();
-		} catch (FormatException | IOException | MinecraftInterfaceCreationException e) {
-			Main.errorProcedure("No " + Main.VERSION.getName() + " Minecraft profile detected, please launch "
-					+ Main.VERSION.getName() + " atleast once and try again");
-		}
+	public static void init(RecognisedVersion ver) throws FormatException, IOException, MinecraftInterfaceCreationException {
+		versionFeatures = DefaultVersionFeatures.create(ver);
+		final MinecraftInstallation minecraftInstallation = MinecraftInstallation.newLocalMinecraftInstallation();
+		LauncherProfile launcherProfile = null;
+		launcherProfile = minecraftInstallation.newLauncherProfile(ver.getName());
+		mcInterface = MinecraftInterfaces.fromLocalProfile(launcherProfile);
+		worldBuilder = WorldBuilder.createSilentPlayerless();
 	}
 
 	private void strongholdSearch(long seed, int radius, CoordinatesInWorld start) {
@@ -288,11 +288,9 @@ public class StructureFinder extends Thread {
 
 	private void setProgress(int i) {
 		try {
-			SwingUtilities.invokeAndWait(() -> {
-				Main.getProgressBar().setValue(i);
-			});
+			SwingUtilities.invokeAndWait(() -> Main.getProgressBar().setValue(i));
 		} catch (InvocationTargetException | InterruptedException e) {
-			Main.errorProcedure(e);
+			Main.errorProcedure(e, false);
 		}
 	}
 
@@ -314,6 +312,10 @@ public class StructureFinder extends Thread {
 
 	public CoordinatesInWorld getStartPos() {
 		return startPos;
+	}
+	
+	public VersionFeatures getVersionFeatures() {
+		return versionFeatures;
 	}
 
 }
