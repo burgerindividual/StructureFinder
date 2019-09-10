@@ -89,7 +89,7 @@ public class StructureFinder extends Thread {
 		WorldOptions worldOptions = new WorldOptions(seed, type);
 		try {
 			world = worldBuilder.from(mcInterface, onDispose, worldOptions);
-		} catch (MinecraftInterfaceException e) {
+		} catch (MinecraftInterfaceException | NullPointerException e) {
 			Main.errorProcedure(e, false);
 		}
 	}
