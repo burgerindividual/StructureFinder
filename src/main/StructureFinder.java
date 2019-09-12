@@ -89,7 +89,7 @@ public class StructureFinder extends Thread {
 		WorldOptions worldOptions = new WorldOptions(seed, type);
 		try {
 			world = worldBuilder.from(mcInterface, onDispose, worldOptions);
-		} catch (MinecraftInterfaceException e) {
+		} catch (MinecraftInterfaceException | NullPointerException e) {
 			Main.errorProcedure(e, false);
 		}
 	}
@@ -167,7 +167,8 @@ public class StructureFinder extends Thread {
 					versionFeatures.getValidBiomesForStructure_PillagerOutpost());
 		default:
 			Main.errorProcedure(
-					"parseLocationChecker error: Input did not match any structure type, instead got " + structtype, false);
+					"parseLocationChecker error: Input did not match any structure type, instead got " + structtype,
+					false);
 			break;
 		}
 		return null;
@@ -184,15 +185,19 @@ public class StructureFinder extends Thread {
 		case "Amplified":
 			return WorldType.AMPLIFIED;
 		default:
-			Main.errorProcedure("parseWorldType error: Input did not match any world type, instead got " + worldtype, false);
+			Main.errorProcedure("parseWorldType error: Input did not match any world type, instead got " + worldtype,
+					false);
 			break;
 		}
 		return null;
 	}
 
-	public static void init(RecognisedVersion ver) throws FormatException, IOException, MinecraftInterfaceCreationException {
+	public static void init(RecognisedVersion ver, String installLocation)
+			throws FormatException, IOException, MinecraftInterfaceCreationException {
 		versionFeatures = DefaultVersionFeatures.create(ver);
-		final MinecraftInstallation minecraftInstallation = MinecraftInstallation.newLocalMinecraftInstallation();
+		final MinecraftInstallation minecraftInstallation = installLocation != null
+				? MinecraftInstallation.newLocalMinecraftInstallation(installLocation)
+				: MinecraftInstallation.newLocalMinecraftInstallation();
 		LauncherProfile launcherProfile = null;
 		launcherProfile = minecraftInstallation.newLauncherProfile(ver.getName());
 		mcInterface = MinecraftInterfaces.fromLocalProfile(launcherProfile);
@@ -313,7 +318,7 @@ public class StructureFinder extends Thread {
 	public CoordinatesInWorld getStartPos() {
 		return startPos;
 	}
-	
+
 	public VersionFeatures getVersionFeatures() {
 		return versionFeatures;
 	}

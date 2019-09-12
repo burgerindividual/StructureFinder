@@ -3,7 +3,6 @@ package main;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
-import java.awt.Cursor;
 import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -11,7 +10,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Toolkit;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -98,7 +96,7 @@ public class Main {
 
 	public static void main(String[] args) {
 		System.out.println("Running from Java version " + System.getProperty("java.version"));
-		System.out.println("Temp Directory: " + System.getProperty("java.io.tmpdir"));
+		/*System.out.println("Temp Directory: " + System.getProperty("java.io.tmpdir"));
 		File path = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 		if (path.getName().contains(".jar") && !path.isDirectory()) {
 			if (args.length == 0) {
@@ -110,13 +108,13 @@ public class Main {
 				}
 				System.exit(0);
 			}
-		}
+		}*/
 
 		try {
-			putVersionItemsAndInit(versionMenu, versiongroup);
+			putVersionItemsAndInit(versionMenu, versiongroup, args.length > 0 ? args[0] : null);
 		} catch (DotMinecraftDirectoryNotFoundException e1) {
 			errorProcedure(
-					".minecraft directory not found. To run this program, you need to have minecraft installed on your computer.",
+					".minecraft directory not found.",
 					true);
 		} catch (Exception e) {
 			errorProcedure(e, false);
@@ -262,7 +260,7 @@ public class Main {
 		jframe.setVisible(true);
 	}
 
-	public static void putVersionItemsAndInit(JMenu menu, ButtonGroup group)
+	public static void putVersionItemsAndInit(JMenu menu, ButtonGroup group, String minecraftDirectory)
 			throws DotMinecraftDirectoryNotFoundException {
 		boolean selected = true;
 		List<String> versions = null;
@@ -281,7 +279,7 @@ public class Main {
 			versionitem.addActionListener((e) -> { // create an action listener for every version menu item
 				RecognisedVersion ver = getSelectedVersion();
 				try {
-					StructureFinder.init(ver);
+					StructureFinder.init(ver, minecraftDirectory);
 					updateStructures(ver);
 				} catch (Exception ex) {
 					errorProcedure(ex, false);
@@ -307,8 +305,7 @@ public class Main {
 			if (!disabled && selected) {
 				versionitem.setSelected(selected);
 				try {
-
-					StructureFinder.init(versionitem.getVersion());
+					StructureFinder.init(versionitem.getVersion(), minecraftDirectory);
 					updateStructures(versionitem.getVersion());
 				} catch (Exception e) {
 					errorProcedure("Error initializing with Minecraft version " + v, true);
