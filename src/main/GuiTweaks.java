@@ -51,7 +51,13 @@ public class GuiTweaks {
 		public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected,
 				boolean cellHasFocus) {
 
-			boolean itemEnabled = ((Conditionable) value).isEnabled();
+			boolean itemEnabled = true;
+			
+			try {
+				itemEnabled = ((Conditionable) value).isEnabled();
+			} catch (NullPointerException e) {
+				itemEnabled = false;
+			}
 
 			Component c = defaultComboBoxRenderer.getListCellRendererComponent(list, value, index,
 					isSelected && itemEnabled, cellHasFocus);
