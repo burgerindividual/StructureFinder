@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.burgerguy.structurefinder</groupId>
   <artifactId>StructureFinder</artifactId>
-  <version>v1.1b</version>
+  <version>v1.1.2b</version>
   <name>StructureFinder</name>
 	<repositories>
 		<repository>

@@ -114,7 +114,7 @@ public class Main {
 			putVersionItemsAndInit(versionMenu, versiongroup, args.length > 0 ? args[0] : null);
 		} catch (DotMinecraftDirectoryNotFoundException e1) {
 			errorProcedure(
-					".minecraft directory not found.",
+					".minecraft directory not found",
 					true);
 		} catch (Exception e) {
 			errorProcedure(e, false);
@@ -270,7 +270,7 @@ public class Main {
 							&& !RecognisedVersion.fromName(v.getId()).equals(RecognisedVersion.UNKNOWN))
 					.map(v -> v.getId()).collect(Collectors.toList());
 		} catch (FormatException | IOException e) {
-			errorProcedure(e, false);
+			errorProcedure("Error getting versions list from launchermeta.mojang.com", true);
 		}
 
 		MinecraftInstallation minecraftInstallation = MinecraftInstallation.newLocalMinecraftInstallation();
@@ -517,7 +517,7 @@ public class Main {
 	}
 
 	public static void errorProcedure(String s, boolean exit) {
-		System.err.print(s);
+		System.err.println(s);
 		SwingUtilities.invokeLater(() -> {
 			final JTextArea textArea = new JTextArea();
 			textArea.setFont(new Font(Font.decode(null).getName(), Font.PLAIN, 10));

@@ -1,13 +1,10 @@
 package main;
 
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-import javax.swing.Icon;
 import javax.swing.JComboBox;
-import javax.swing.JComponent;
 import javax.swing.JList;
 import javax.swing.ListCellRenderer;
 import javax.swing.UIManager;
@@ -45,14 +42,13 @@ public class GuiTweaks {
 
 	static class ConditionalComboBoxRenderer extends BasicComboBoxRenderer implements ListCellRenderer {
 		private static final long serialVersionUID = -1384299159610756056L;
-		private final BasicComboBoxRenderer defaultComboBoxRenderer = (BasicComboBoxRenderer) new JComboBox<>()
-				.getRenderer();
+		private final ListCellRenderer defaultComboBoxRenderer = (ListCellRenderer) new JComboBox<>().getRenderer();
 
 		public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected,
 				boolean cellHasFocus) {
 
 			boolean itemEnabled = true;
-			
+
 			try {
 				itemEnabled = ((Conditionable) value).isEnabled();
 			} catch (NullPointerException e) {
