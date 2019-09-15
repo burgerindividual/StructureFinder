@@ -1,6 +1,9 @@
 package main;
 
+import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
@@ -40,7 +43,7 @@ public class GuiTweaks {
 		}
 	}
 
-	static class ConditionalComboBoxRenderer extends BasicComboBoxRenderer implements ListCellRenderer {
+	static class ConditionalComboBoxRenderer extends BasicComboBoxRenderer {
 		private static final long serialVersionUID = -1384299159610756056L;
 		private final ListCellRenderer defaultComboBoxRenderer = (ListCellRenderer) new JComboBox<>().getRenderer();
 
@@ -120,5 +123,4 @@ public class GuiTweaks {
 
 		public String toString();
 	}
-
 }

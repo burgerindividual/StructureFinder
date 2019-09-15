@@ -42,6 +42,7 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.plaf.basic.BasicProgressBarUI;
 import javax.swing.text.AbstractDocument;
@@ -62,6 +63,8 @@ public class Main {
 	public static final String[] DIMENSIONS = { "Nether", "Overworld" };
 	public static final String[] WORLD_TYPES = { "Default", "Flat", "Large Biomes", "Amplified" };
 	public static final Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+	public static final Dimension minSize = new Dimension(600,320);
+	public static final Dimension maxSize = new Dimension(800,320);
 	public static Font defaultFont = new Font(Font.decode(null).getName(), Font.PLAIN, 12);
 	private static JFrame jframe = new JFrame("StructureFinder");
 	private static JPanel jpanel = new JPanel(new GridBagLayout());
@@ -129,8 +132,11 @@ public class Main {
 
 	private static void swingSetup() {
 		jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		jframe.setSize((int) (screenSize.getHeight() / 1.8),
-				(int) (screenSize.getHeight() / 3.6) + (int) (screenSize.getHeight() / 54));
+		/*jframe.setSize((int) (screenSize.getHeight() / 1.8),
+				(int) (screenSize.getHeight() / 3.6) + (int) (screenSize.getHeight() / 54));*/
+		
+		jframe.setMinimumSize(minSize);
+		jframe.setMaximumSize(maxSize);
 		jframe.setResizable(false);
 		jframe.add(jpanel);
 
@@ -257,6 +263,7 @@ public class Main {
 		changeFont(jpanel, defaultFont);
 		setFocus(jpanel, false);
 		scrollpane.setPreferredSize(scrollpane.getSize());
+		jframe.setSize(jframe.getWidth() + (100 - scrollpane.getWidth()), jframe.getMinimumSize().height);
 		jframe.setVisible(true);
 	}
 
@@ -273,7 +280,9 @@ public class Main {
 			errorProcedure("Error getting versions list from launchermeta.mojang.com", true);
 		}
 
-		MinecraftInstallation minecraftInstallation = MinecraftInstallation.newLocalMinecraftInstallation();
+		MinecraftInstallation minecraftInstallation = minecraftDirectory != null
+				? MinecraftInstallation.newLocalMinecraftInstallation(minecraftDirectory)
+				: MinecraftInstallation.newLocalMinecraftInstallation();
 		for (String v : versions) {
 			JVersionMenuItem versionitem = new JVersionMenuItem(v, RecognisedVersion.fromName(v));
 			versionitem.addActionListener((e) -> { // create an action listener for every version menu item
