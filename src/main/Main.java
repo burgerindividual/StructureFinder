@@ -63,8 +63,8 @@ public class Main {
 	public static final String[] DIMENSIONS = { "Nether", "Overworld" };
 	public static final String[] WORLD_TYPES = { "Default", "Flat", "Large Biomes", "Amplified" };
 	public static final Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-	public static final Dimension minSize = new Dimension(600,320);
-	public static final Dimension maxSize = new Dimension(800,320);
+	public static final Dimension minSize = new Dimension(600, 320);
+	public static final Dimension maxSize = new Dimension(800, 320);
 	public static Font defaultFont = new Font(Font.decode(null).getName(), Font.PLAIN, 12);
 	private static JFrame jframe = new JFrame("StructureFinder");
 	private static JPanel jpanel = new JPanel(new GridBagLayout());
@@ -116,9 +116,7 @@ public class Main {
 		try {
 			putVersionItemsAndInit(versionMenu, versiongroup, args.length > 0 ? args[0] : null);
 		} catch (DotMinecraftDirectoryNotFoundException e1) {
-			errorProcedure(
-					".minecraft directory not found",
-					true);
+			errorProcedure(".minecraft directory not found", true);
 		} catch (Exception e) {
 			errorProcedure(e, false);
 		}
@@ -244,7 +242,8 @@ public class Main {
 			errorProcedure(e, false);
 		}
 		structurebox.setRenderer(new ConditionalComboBoxRenderer());
-		if (UIManager.getLookAndFeel().getClass().getName().equals("com.sun.java.swing.plaf.windows.WindowsLookAndFeel")) {
+		if (UIManager.getLookAndFeel().getClass().getName()
+				.equals("com.sun.java.swing.plaf.windows.WindowsLookAndFeel")) {
 			progressbar.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
 			progressbar.setBackground(new Color(230, 230, 230));
 			progressbar.setForeground(new Color(120, 230, 90));
@@ -277,7 +276,15 @@ public class Main {
 							&& !RecognisedVersion.fromName(v.getId()).equals(RecognisedVersion.UNKNOWN))
 					.map(v -> v.getId()).collect(Collectors.toList());
 		} catch (FormatException | IOException e) {
-			errorProcedure("Error getting versions list from launchermeta.mojang.com", true);
+			System.err.println("Error getting versions list from launchermeta.mojang.com");
+			try {
+				versions = VersionList.newLocalVersionList().getVersions().stream()
+						.filter(v -> v.getType().equals(ReleaseType.RELEASE)
+								&& !RecognisedVersion.fromName(v.getId()).equals(RecognisedVersion.UNKNOWN))
+						.map(v -> v.getId()).collect(Collectors.toList());
+			} catch (FormatException | IOException e1) {
+				errorProcedure("Error getting versions list from online and local", true);
+			}
 		}
 
 		MinecraftInstallation minecraftInstallation = minecraftDirectory != null
