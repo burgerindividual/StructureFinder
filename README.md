@@ -13,7 +13,7 @@ It relies on [Amidst](https://github.com/toolbox4minecraft/amidst) used as a lib
 
 ## TODO's
 
-- [ ] Add a logger
+- [x] Add a logger
 - [x] Sort by nearest
 - [x] Make UI look better
 - [x] Fix Nether Fortresses
