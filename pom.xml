@@ -41,9 +41,9 @@
   </build>
   <dependencies>
 	<dependency>
-	    <groupId>com.github.toolbox4minecraft</groupId>
+	    <groupId>com.github.burgerguy</groupId>
 	    <artifactId>amidst</artifactId>
-	    <version>v4.3</version>
+	    <version>master-SNAPSHOT</version>
 	</dependency>
   </dependencies>
 </project>

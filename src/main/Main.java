@@ -8,6 +8,7 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.Image;
 import java.awt.Insets;
 import java.awt.Toolkit;
 import java.io.IOException;
@@ -21,8 +22,10 @@ import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComboBox;
 import javax.swing.JEditorPane;
 import javax.swing.JFrame;
@@ -41,6 +44,7 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.plaf.basic.BasicProgressBarUI;
@@ -92,11 +96,17 @@ public class Main {
 	private static JMenu versionMenu = new JMenu("Version");
 	private static JMenu helpMenu = new JMenu("Help");
 	private static JMenuItem about = new JMenuItem("About StructureFinder");
+	private static JMenuItem viewLog = new JMenuItem("View Log");
+	private static JCheckBoxMenuItem showTooltips = new JCheckBoxMenuItem("Show Tooltips on Hover", true);
 	private static ButtonGroup versiongroup = new ButtonGroup();
 	private static StructureFinder sf;
 	private static GridBagConstraints constraints = new GridBagConstraints();
+	private static JTextArea logArea = new JTextArea();
 
 	public static void main(String[] args) {
+		System.setOut(LogBuffer.create(System.out));
+		System.setErr(LogBuffer.create(System.err));
+		
 		System.out.println("Running from Java version " + System.getProperty("java.version"));
 		/*System.out.println("Temp Directory: " + System.getProperty("java.io.tmpdir"));
 		File path = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().getPath());
@@ -128,6 +138,11 @@ public class Main {
 	}
 
 	private static void swingSetup() {
+		logArea.setFont(new Font(Font.decode(null).getName(), Font.PLAIN, 10));
+		logArea.setEditable(false);
+		logArea.setWrapStyleWord(true);
+		logArea.setLineWrap(true);
+		
 		jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		/*jframe.setSize((int) (screenSize.getHeight() / 1.8),
 				(int) (screenSize.getHeight() / 3.6) + (int) (screenSize.getHeight() / 54));*/
@@ -140,17 +155,25 @@ public class Main {
 		Insets insetDefault = new Insets(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 40,
 				jframe.getWidth() / 50);
 
+		showTooltips.setToolTipText("<html>Enables or disables tooltips.<br>What you are reading right now is a tooltip.</html>");
+		
+		helpMenu.add(showTooltips);
+		helpMenu.addSeparator();
+		helpMenu.add(viewLog);
 		helpMenu.add(about);
-
+		
+		versionMenu.setToolTipText("<html>A dropdown for selecting the version used.<br>Versions that are grayed out have not been<br>run from the minecraft launcher before.</html>");
 		menubar.add(versionMenu);
 		menubar.add(helpMenu);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 0, 4, 1, 0, 0, GridBagConstraints.PAGE_START);
 		jpanel.add(menubar, constraints);
-
+		
+		lStructure.setToolTipText("<html>The structure to be searched for.</html>");
 		lStructure.setHorizontalAlignment(SwingConstants.CENTER);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 2, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lStructure, constraints);
-
+		
+		lWorldType.setToolTipText("<html>The world type used in the search.</html>");
 		lWorldType.setHorizontalAlignment(SwingConstants.CENTER);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 1, 2, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lWorldType, constraints);
@@ -159,15 +182,18 @@ public class Main {
 		lCoordType.setEnabled(false);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 2, 2, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lCoordType, constraints);
-
+		
+		lStartX.setToolTipText("<html>The X position at the middle of the search.</html>");
 		lStartX.setHorizontalAlignment(SwingConstants.CENTER);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 4, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lStartX, constraints);
 
+		lStartZ.setToolTipText("<html>The Z position at the middle of the search.</html>");
 		lStartZ.setHorizontalAlignment(SwingConstants.CENTER);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 1, 4, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lStartZ, constraints);
 
+		lRadius.setToolTipText("<html>The radius (in a square) of the search in chunks.<br>Has a maximum of 6250 chunks, or 1 million blocks.</html>");
 		lRadius.setHorizontalAlignment(SwingConstants.CENTER);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 2, 4, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lRadius, constraints);
@@ -175,25 +201,30 @@ public class Main {
 		progressbar.setStringPainted(true);
 		setConstraints(insetDefault, GridBagConstraints.BOTH, 0, 1, 3, 1, 0, 0.05, GridBagConstraints.CENTER);
 		jpanel.add(progressbar, constraints);
-
+		
+		structurebox.setToolTipText("<html>The structure to be searched for.</html>");
 		setConstraints(insetDefault, GridBagConstraints.NONE, 0, 3, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(structurebox, constraints);
-
+		
+		worldtypebox.setToolTipText("<html>The world type used in the search.</html>");
 		setConstraints(insetDefault, GridBagConstraints.NONE, 1, 3, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(worldtypebox, constraints);
 
 		coordtypebox.setEnabled(false);
 		setConstraints(insetDefault, GridBagConstraints.NONE, 2, 3, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(coordtypebox, constraints);
-
+		
+		startX.setToolTipText("<html>The X position at the middle of the search.</html>");
 		startX.setPreferredSize(structurebox.getPreferredSize());
 		setConstraints(insetDefault, GridBagConstraints.NONE, 0, 5, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(startX, constraints);
-
+		
+		startZ.setToolTipText("<html>The Z position at the middle of the search.</html>");
 		startZ.setPreferredSize(worldtypebox.getPreferredSize());
 		setConstraints(insetDefault, GridBagConstraints.NONE, 1, 5, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(startZ, constraints);
-
+		
+		radius.setToolTipText("<html>The radius (in a square) of the search in chunks.<br>Has a maximum of 6250 chunks, or 1 million blocks.</html>");
 		radius.setPreferredSize(coordtypebox.getPreferredSize());
 		setConstraints(insetDefault, GridBagConstraints.NONE, 2, 5, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(radius, constraints);
@@ -209,15 +240,18 @@ public class Main {
 		// checkbox panel ends here
 
 		// seperate panel for seed so text is aligned
+		lSeed.setToolTipText("<html>The seed of the world to be searched.</html>");
 		lSeed.setHorizontalAlignment(SwingConstants.CENTER);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 1, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		seedPanel.add(lSeed, constraints);
 
+		seed.setToolTipText("<html>The seed of the world to be searched.</html>");
 		((AbstractDocument) seed.getDocument()).setDocumentFilter(new LimitDocumentFilter(32));
 		setConstraints(0, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50,
 				GridBagConstraints.HORIZONTAL, 0, 2, 1, 1, 1, 0, GridBagConstraints.PAGE_END);
 		seedPanel.add(seed, constraints);
 
+		jbutton.setToolTipText("<html>Click to start the search.</html>");
 		setConstraints(0, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50,
 				GridBagConstraints.NONE, 1, 2, 1, 1, 0, 0.1, GridBagConstraints.PAGE_END);
 		seedPanel.add(jbutton, constraints);
@@ -258,6 +292,30 @@ public class Main {
 				}
 			});
 		}
+		ToolTipManager.sharedInstance().setEnabled(showTooltips.getState());
+		ToolTipManager.sharedInstance().setReshowDelay(0);
+		ToolTipManager.sharedInstance().setDismissDelay(60000);
+		
+		about.setIcon(
+				new ImageIcon(
+				((ImageIcon) UIManager.getIcon("OptionPane.informationIcon"))
+				.getImage()
+				.getScaledInstance(
+						about.getPreferredSize().height - about.getIconTextGap(), 
+						about.getPreferredSize().height - about.getIconTextGap(), 
+						Image.SCALE_SMOOTH
+				)));
+		
+		viewLog.setIcon(
+				new ImageIcon(
+				((ImageIcon) UIManager.getIcon("FileView.fileIcon"))
+				.getImage()
+				.getScaledInstance(
+						(int) ((viewLog.getPreferredSize().height - viewLog.getIconTextGap()) * 0.8),
+						viewLog.getPreferredSize().height - viewLog.getIconTextGap(), 
+						Image.SCALE_SMOOTH
+				)));
+		
 		changeFont(jpanel, defaultFont);
 		setFocus(jpanel, false);
 		scrollpane.setPreferredSize(scrollpane.getSize());
@@ -335,7 +393,7 @@ public class Main {
 	}
 
 	public static void initListeners() {
-		jbutton.addActionListener((e) -> {
+		jbutton.addActionListener(e -> {
 			if (!seed.getText().trim().isEmpty()) {
 				Resolution res = getResolution();
 				try {
@@ -372,13 +430,17 @@ public class Main {
 				appendText("Seed is empty");
 			}
 		});
-		structurebox.addActionListener((e) -> {
+		structurebox.addActionListener(e -> {
 			if (isStructTypeNetherFortress()) {
 				lCoordType.setEnabled(true);
+				lCoordType.setToolTipText("<html>Only applies to Nether Fortresses.<br><br>If you select \"Overworld\", it will output the<br>location you would put a portal in the<br>Overworld to get to the fortress.<br><br>If you select \"Nether\", it will output the Nether<br>coordinates of the fortress.</html>");
 				coordtypebox.setEnabled(true);
+				coordtypebox.setToolTipText("<html>Only applies to Nether Fortresses.<br><br>If you select \"Overworld\", it will output the<br>location you would put a portal in the<br>Overworld to get to the fortress.<br><br>If you select \"Nether\", it will output the Nether<br>coordinates of the fortress.</html>");
 			} else {
 				lCoordType.setEnabled(false);
+				lCoordType.setToolTipText(null);
 				coordtypebox.setEnabled(false);
+				coordtypebox.setToolTipText(null);
 			}
 			if (String.valueOf(structurebox.getSelectedItem()).equals("End City")) {
 				checkbox.setVisible(true);
@@ -386,15 +448,15 @@ public class Main {
 				checkbox.setVisible(false);
 			}
 		});
-		about.addActionListener((e) -> {
+		about.addActionListener(e -> {
 			JEditorPane text = new JEditorPane("text/html",
-					"<html>StructureFinder - Quickly finds Minecraft structures<br/><br/>Author: burgerguy / burgerdude<br/>GitHub Link: <a href=\"https://github.com/burgerguy/StructureFinder/\">https://github.com/burgerguy/StructureFinder/</a></html>");
+					"<html>StructureFinder - Quickly finds Minecraft structures<br/><br/>Author: burgerguy / burgerdude<br/>GitHub Link: <a href=\"https://github.com/burgerguy/StructureFinder/\">https://github.com/burgerguy/StructureFinder/</a><br><br>Amidst Author: skiphs<br>Amidst Github Link: <a href=\"https://github.com/toolbox4minecraft/amidst\">https://github.com/toolbox4minecraft/amidst</a></html>");
 			String bodyRule = "body { font-family: " + defaultFont.getFamily() + "; " + "font-size: "
 					+ defaultFont.getSize() + "pt; }";
 			((HTMLDocument) text.getDocument()).getStyleSheet().addRule(bodyRule);
 			text.setEditable(false);
 			text.setOpaque(false);
-			text.addHyperlinkListener((hle) -> {
+			text.addHyperlinkListener(hle -> {
 				if (HyperlinkEvent.EventType.ACTIVATED.equals(hle.getEventType())) {
 					Desktop desktop = Desktop.isDesktopSupported() ? Desktop.getDesktop() : null;
 					if (desktop != null && desktop.isSupported(Desktop.Action.BROWSE)) {
@@ -408,6 +470,18 @@ public class Main {
 			});
 
 			JOptionPane.showMessageDialog(jframe, text, "Structure Finder: About", JOptionPane.INFORMATION_MESSAGE);
+		});
+		showTooltips.addActionListener(e -> {
+			ToolTipManager.sharedInstance().setEnabled(showTooltips.getState());
+		});
+		viewLog.addActionListener(e -> {
+			JScrollPane scrollPane = new JScrollPane(logArea);
+			scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+			scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+			scrollPane.setPreferredSize(
+					new Dimension((int) (screenSize.getHeight() / 1.4), (int) (screenSize.getHeight() / 1.4)));
+			
+			JOptionPane.showMessageDialog(jframe, scrollPane, "Structure Finder: Log", JOptionPane.PLAIN_MESSAGE);
 		});
 	}
 
@@ -582,6 +656,10 @@ public class Main {
 			}
 		}
 		return version;
+	}
+	
+	public static void logAppend(String s) {
+		logArea.append(s);
 	}
 
 	private static void updateStructures(RecognisedVersion version) {
