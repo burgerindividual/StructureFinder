@@ -76,7 +76,7 @@ public class Main {
 	private static JComboBox<String> worldtypebox = new JComboBox<String>(WORLD_TYPES);
 	private static JButton jbutton = new JButton("Run");
 	private static JTextField seed = new JTextField();
-	private static JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 6250, 1));
+	private static JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 62500, 1));
 	private static JSpinner startX = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
 	private static JSpinner startZ = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
 	private static JCheckBox checkbox = new JCheckBox("Include Unlikely End Cities", false);
@@ -193,7 +193,7 @@ public class Main {
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 1, 4, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lStartZ, constraints);
 
-		lRadius.setToolTipText("<html>The radius (in a square) of the search in chunks.<br>Has a maximum of 6250 chunks, or 1 million blocks.</html>");
+		lRadius.setToolTipText("<html>The radius (in a square) of the search in chunks.<br>Has a maximum of 62500 chunks, or 1 million blocks.</html>");
 		lRadius.setHorizontalAlignment(SwingConstants.CENTER);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 2, 4, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lRadius, constraints);
