@@ -224,7 +224,7 @@ public class Main {
 		setConstraints(insetDefault, GridBagConstraints.NONE, 1, 5, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(startZ, constraints);
 		
-		radius.setToolTipText("<html>The radius (in a square) of the search in chunks.<br>Has a maximum of 6250 chunks, or 1 million blocks.</html>");
+		radius.setToolTipText("<html>The radius (in a square) of the search in chunks.<br>Has a maximum of 62500 chunks, or 1 million blocks.</html>");
 		radius.setPreferredSize(coordtypebox.getPreferredSize());
 		setConstraints(insetDefault, GridBagConstraints.NONE, 2, 5, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(radius, constraints);
