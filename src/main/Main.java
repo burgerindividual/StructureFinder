@@ -11,6 +11,7 @@ import java.awt.GridBagLayout;
 import java.awt.Image;
 import java.awt.Insets;
 import java.awt.Toolkit;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -123,7 +124,7 @@ public class Main {
 		}*/
 
 		try {
-			putVersionItemsAndInit(versionMenu, versiongroup, args.length > 0 ? args[0] : null);
+			putVersionItemsAndInit(versionMenu, versiongroup, args.length > 0 ? new File(args[0]) : null);
 		} catch (DotMinecraftDirectoryNotFoundException e1) {
 			errorProcedure(".minecraft directory not found", true);
 		} catch (Exception e) {
@@ -323,7 +324,7 @@ public class Main {
 		jframe.setVisible(true);
 	}
 
-	public static void putVersionItemsAndInit(JMenu menu, ButtonGroup group, String minecraftDirectory)
+	public static void putVersionItemsAndInit(JMenu menu, ButtonGroup group, File minecraftDirectory)
 			throws DotMinecraftDirectoryNotFoundException {
 		boolean selected = true;
 		List<String> versions = null;

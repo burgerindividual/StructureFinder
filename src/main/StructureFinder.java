@@ -1,5 +1,6 @@
 package main;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.AbstractMap.SimpleEntry;
@@ -84,7 +85,6 @@ public class StructureFinder extends Thread {
 	public void createWorld(WorldSeed seed, WorldType type) {
 		Consumer<World> onDispose = world -> {
 			world = null;
-			System.gc();
 		};
 		WorldOptions worldOptions = new WorldOptions(seed, type);
 		try {
@@ -192,7 +192,7 @@ public class StructureFinder extends Thread {
 		return null;
 	}
 
-	public static void init(RecognisedVersion ver, String installLocation)
+	public static void init(RecognisedVersion ver, File installLocation)
 			throws FormatException, IOException, MinecraftInterfaceCreationException {
 		versionFeatures = DefaultVersionFeatures.create(ver);
 		final MinecraftInstallation minecraftInstallation = installLocation != null
