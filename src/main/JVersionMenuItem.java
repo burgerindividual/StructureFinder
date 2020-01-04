@@ -14,6 +14,6 @@ public class JVersionMenuItem extends JRadioButtonMenuItem {
 	}
 	
 	public RecognisedVersion getVersion() {
-		return this.version;
+		return version;
 	}
 }

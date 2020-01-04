@@ -3,8 +3,6 @@ package main;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -46,15 +44,15 @@ public class StructureFinder extends Thread {
 	private final String structureType;
 	private final int radius;
 	private final CoordinatesInWorld startPos;
-
+	
 	private final Resolution resolution;
 	private final boolean unlikelyEndCities;
-
+	
 	private LocationChecker locationChecker;
 	private World world;
 	private int structureOffset;
 	private boolean isStrongholdSearch = false;
-
+	
 	public StructureFinder(String worldSeed, String worldType, String structureType, int radius,
 			CoordinatesInWorld startPos, Resolution resolution, boolean unlikelyEndCities) {
 		this.worldSeed = WorldSeed.fromUserInput(worldSeed);
@@ -66,7 +64,7 @@ public class StructureFinder extends Thread {
 		this.unlikelyEndCities = unlikelyEndCities;
 		setName("StructureWorker");
 	}
-
+	
 	@Override
 	public void run() {
 		Main.setChangeVersions(false);
@@ -81,7 +79,7 @@ public class StructureFinder extends Thread {
 		world.dispose();
 		Main.setChangeVersions(true);
 	}
-
+	
 	public void createWorld(WorldSeed seed, WorldType type) {
 		Consumer<World> onDispose = world -> {
 			world = null;
@@ -93,7 +91,7 @@ public class StructureFinder extends Thread {
 			Main.errorProcedure(e, false);
 		}
 	}
-
+	
 	public LocationChecker parseLocationChecker(String structtype, WorldSeed seed) {
 		switch (structtype) {
 		case "Village":
@@ -173,7 +171,7 @@ public class StructureFinder extends Thread {
 		}
 		return null;
 	}
-
+	
 	public WorldType parseWorldType(String worldtype) {
 		switch (worldtype) {
 		case "Default":
@@ -191,7 +189,7 @@ public class StructureFinder extends Thread {
 		}
 		return null;
 	}
-
+	
 	public static void init(RecognisedVersion ver, File installLocation)
 			throws FormatException, IOException, MinecraftInterfaceCreationException {
 		versionFeatures = DefaultVersionFeatures.create(ver);
@@ -203,43 +201,28 @@ public class StructureFinder extends Thread {
 		mcInterface = MinecraftInterfaces.fromLocalProfile(launcherProfile);
 		worldBuilder = WorldBuilder.createSilentPlayerless();
 	}
-
+	
 	private void strongholdSearch(long seed, int radius, CoordinatesInWorld start) {
 		StrongholdProducer_128Algorithm shp = new StrongholdProducer_128Algorithm(seed, world.getBiomeDataOracle(),
 				versionFeatures.getValidBiomesAtMiddleOfChunk_Stronghold());
 		List<CoordinatesInWorld> coords = shp.getWorldIcons().stream().map(icon -> icon.getCoordinates())
 				.collect(Collectors.toList());
-		List<SimpleEntry<CoordinatesInWorld, Double>> cdPairs = new ArrayList<SimpleEntry<CoordinatesInWorld, Double>>();
 		int cradius = radius << 4;
 		int i = 0;
 		for (CoordinatesInWorld coord : coords) {
 			setProgress(i);
-			if ((coord.getX() > start.getX() - cradius && coord.getX() < start.getX() + cradius)
-					&& (coord.getY() > start.getY() - cradius && coord.getY() < start.getY() + cradius)) {
+			if (coord.getX() > start.getX() - cradius && coord.getX() < start.getX() + cradius
+					&& coord.getY() > start.getY() - cradius && coord.getY() < start.getY() + cradius) {
 				CoordinatesInWorld newCoord = CoordinatesInWorld.from(coord.getX() + structureOffset,
 						coord.getY() + structureOffset);
-				cdPairs.add(new SimpleEntry<>(newCoord, start.getDistanceSq(newCoord)));
-
-				int n = cdPairs.size() - 1;
-				SimpleEntry<CoordinatesInWorld, Double> key = cdPairs.get(n);
-				int j = n - 1;
-
-				while (j >= 0 && cdPairs.get(j).getValue() > key.getValue()) {
-					cdPairs.set(j + 1, cdPairs.get(j));
-					j = j - 1;
-				}
-				cdPairs.set(j + 1, key);
+				Main.addRow(new CoordData(start, newCoord));
 			}
 			i++;
 		}
-		for (SimpleEntry<CoordinatesInWorld, Double> entry : cdPairs) {
-			Main.appendText(entry.getKey().getX() + ", " + entry.getKey().getY());
-		}
 		setProgress(Main.getProgressBar().getMinimum());
 	}
-
+	
 	public void scanForStructure(LocationChecker checker, CoordinatesInWorld start, Resolution res, int r) {
-		List<SimpleEntry<CoordinatesInWorld, Double>> cdPairs = new ArrayList<SimpleEntry<CoordinatesInWorld, Double>>();
 		boolean flag1 = Main.isStructTypeNetherFortress();
 		boolean flag2 = Main.isCoordTypeNether();
 		CoordinatesInWorld newCoords = null;
@@ -253,44 +236,21 @@ public class StructureFinder extends Thread {
 										+ Resolution.NETHER.convertFromWorldToThis(structureOffset),
 								start.getY() + res.convertFromThisToWorld(y)
 										+ Resolution.NETHER.convertFromWorldToThis(structureOffset));
-						cdPairs.add(new SimpleEntry<>(newCoords, start.getDistanceSq(newCoords)));
-
-						int n = cdPairs.size() - 1;
-						SimpleEntry<CoordinatesInWorld, Double> key = cdPairs.get(n);
-						int j = n - 1;
-
-						while (j >= 0 && cdPairs.get(j).getValue() > key.getValue()) {
-							cdPairs.set(j + 1, cdPairs.get(j));
-							j = j - 1;
-						}
-						cdPairs.set(j + 1, key);
+						Main.addRow(new CoordData(start, newCoords));
 					}
 				} else {
 					if (checker.isValidLocation((int) (start.getXAs(res) + x), (int) (start.getYAs(res) + y))) {
 						newCoords = CoordinatesInWorld.from(
 								start.getX() + res.convertFromThisToWorld(x) + structureOffset,
 								start.getY() + res.convertFromThisToWorld(y) + structureOffset);
-						cdPairs.add(new SimpleEntry<>(newCoords, start.getDistanceSq(newCoords)));
-
-						int n = cdPairs.size() - 1;
-						SimpleEntry<CoordinatesInWorld, Double> key = cdPairs.get(n);
-						int j = n - 1;
-
-						while (j >= 0 && cdPairs.get(j).getValue() > key.getValue()) {
-							cdPairs.set(j + 1, cdPairs.get(j));
-							j = j - 1;
-						}
-						cdPairs.set(j + 1, key);
+						Main.addRow(new CoordData(start, newCoords));
 					}
 				}
 			}
 		}
-		for (SimpleEntry<CoordinatesInWorld, Double> entry : cdPairs) {
-			Main.appendText(entry.getKey().getX() + ", " + entry.getKey().getY()); // appendText IS thread safe
-		}
 		setProgress(Main.getProgressBar().getMinimum());
 	}
-
+	
 	private void setProgress(int i) {
 		try {
 			SwingUtilities.invokeAndWait(() -> Main.getProgressBar().setValue(i));
@@ -298,29 +258,29 @@ public class StructureFinder extends Thread {
 			Main.errorProcedure(e, false);
 		}
 	}
-
+	
 	public WorldSeed getSeed() {
 		return worldSeed;
 	}
-
+	
 	public WorldType getWorldType() {
 		return worldType;
 	}
-
+	
 	public String getStructureType() {
 		return structureType;
 	}
-
+	
 	public int getRadius() {
 		return radius;
 	}
-
+	
 	public CoordinatesInWorld getStartPos() {
 		return startPos;
 	}
-
+	
 	public VersionFeatures getVersionFeatures() {
 		return versionFeatures;
 	}
-
+	
 }

@@ -11,15 +11,20 @@ import java.awt.GridBagLayout;
 import java.awt.Image;
 import java.awt.Insets;
 import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.ActionEvent;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
+import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultComboBoxModel;
@@ -28,6 +33,7 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -39,9 +45,13 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.RowSorter;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.SortOrder;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
@@ -60,8 +70,10 @@ import amidst.mojangapi.minecraftinterface.RecognisedVersion;
 import amidst.mojangapi.world.coordinates.CoordinatesInWorld;
 import amidst.mojangapi.world.coordinates.Resolution;
 import amidst.parsing.FormatException;
-
-import main.GuiTweaks.*;
+import main.GuiTweaks.ConditionalComboBoxListener;
+import main.GuiTweaks.ConditionalComboBoxRenderer;
+import main.GuiTweaks.ConditionalString;
+import main.GuiTweaks.LimitDocumentFilter;
 
 public class Main {
 	public static final String[] DIMENSIONS = { "Nether", "Overworld" };
@@ -72,9 +84,9 @@ public class Main {
 	public static Font defaultFont = new Font(Font.decode(null).getName(), Font.PLAIN, 12);
 	private static JFrame jframe = new JFrame("StructureFinder");
 	private static JPanel jpanel = new JPanel(new GridBagLayout());
-	private static JComboBox<String> coordtypebox = new JComboBox<String>(DIMENSIONS);
-	private static JComboBox<ConditionalString> structurebox = new JComboBox<ConditionalString>();
-	private static JComboBox<String> worldtypebox = new JComboBox<String>(WORLD_TYPES);
+	private static JComboBox<String> coordtypebox = new JComboBox<>(DIMENSIONS);
+	private static JComboBox<ConditionalString> structurebox = new JComboBox<>();
+	private static JComboBox<String> worldtypebox = new JComboBox<>(WORLD_TYPES);
 	private static JButton jbutton = new JButton("Run");
 	private static JTextField seed = new JTextField();
 	private static JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 62500, 1));
@@ -82,7 +94,7 @@ public class Main {
 	private static JSpinner startZ = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
 	private static JCheckBox checkbox = new JCheckBox("Include Unlikely End Cities", false);
 	private static JPanel checkboxpanel = new JPanel(new GridBagLayout());
-	private static JTextArea output = new JTextArea();
+	private static JTable output = new JTable();
 	private static JScrollPane scrollpane = new JScrollPane(output);
 	private static JProgressBar progressbar = new JProgressBar();
 	private static JLabel lRadius = new JLabel("Radius (Chunks)");
@@ -107,21 +119,8 @@ public class Main {
 	public static void main(String[] args) {
 		System.setOut(LogBuffer.create(System.out));
 		System.setErr(LogBuffer.create(System.err));
-		
+
 		System.out.println("Running from Java version " + System.getProperty("java.version"));
-		/*System.out.println("Temp Directory: " + System.getProperty("java.io.tmpdir"));
-		File path = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().getPath());
-		if (path.getName().contains(".jar") && !path.isDirectory()) {
-			if (args.length == 0) {
-				try {
-					Runtime.getRuntime().exec(new String[] { "java", "-XX:+UseParallelGC", "-XX:GCTimeRatio=19",
-							"-Xms64m", "-Xmx384m", "-jar", path.getName(), "start" });
-				} catch (IOException ioe) {
-					errorProcedure(ioe, false);
-				}
-				System.exit(0);
-			}
-		}*/
 
 		try {
 			putVersionItemsAndInit(versionMenu, versiongroup, args.length > 0 ? new File(args[0]) : null);
@@ -138,16 +137,15 @@ public class Main {
 		initListeners();
 	}
 
+	@SuppressWarnings("unchecked")
 	private static void swingSetup() {
 		logArea.setFont(new Font(Font.decode(null).getName(), Font.PLAIN, 10));
 		logArea.setEditable(false);
 		logArea.setWrapStyleWord(true);
 		logArea.setLineWrap(true);
-		
+
 		jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		/*jframe.setSize((int) (screenSize.getHeight() / 1.8),
-				(int) (screenSize.getHeight() / 3.6) + (int) (screenSize.getHeight() / 54));*/
-		
+
 		jframe.setMinimumSize(minSize);
 		jframe.setMaximumSize(maxSize);
 		jframe.setResizable(false);
@@ -156,34 +154,38 @@ public class Main {
 		Insets insetDefault = new Insets(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 40,
 				jframe.getWidth() / 50);
 
-		showTooltips.setToolTipText("<html>Enables or disables tooltips.<br>What you are reading right now is a tooltip.</html>");
-		
+		showTooltips.setToolTipText(
+				"<html>Enables or disables tooltips.<br>What you are reading right now is a tooltip.</html>");
+
 		helpMenu.add(showTooltips);
 		helpMenu.addSeparator();
 		helpMenu.add(viewLog);
 		helpMenu.add(about);
-		
-		versionMenu.setToolTipText("<html>A dropdown for selecting the version used.<br>Versions that are grayed out have not been<br>run from the minecraft launcher before.</html>");
+
+		versionMenu.setToolTipText(
+				"<html>A dropdown for selecting the version used.<br>Versions that are grayed out have not been<br>run from the minecraft launcher before.</html>");
 		menubar.add(versionMenu);
 		menubar.add(helpMenu);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 0, 4, 1, 0, 0, GridBagConstraints.PAGE_START);
 		jpanel.add(menubar, constraints);
-		
+
 		lStructure.setToolTipText("<html>The structure to be searched for.</html>");
 		lStructure.setHorizontalAlignment(SwingConstants.CENTER);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 2, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lStructure, constraints);
-		
+
 		lWorldType.setToolTipText("<html>The world type used in the search.</html>");
 		lWorldType.setHorizontalAlignment(SwingConstants.CENTER);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 1, 2, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lWorldType, constraints);
 
+		lCoordType.setToolTipText(
+				"<html>Only applies to Nether Fortresses.<br><br>If you select \"Overworld\", it will output the<br>location you would put a portal in the<br>Overworld to get to the fortress.<br><br>If you select \"Nether\", it will output the Nether<br>coordinates of the fortress.</html>");
 		lCoordType.setHorizontalAlignment(SwingConstants.CENTER);
 		lCoordType.setEnabled(false);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 2, 2, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lCoordType, constraints);
-		
+
 		lStartX.setToolTipText("<html>The X position at the middle of the search.</html>");
 		lStartX.setHorizontalAlignment(SwingConstants.CENTER);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 4, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
@@ -194,7 +196,8 @@ public class Main {
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 1, 4, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lStartZ, constraints);
 
-		lRadius.setToolTipText("<html>The radius (in a square) of the search in chunks.<br>Has a maximum of 62500 chunks, or 1 million blocks.</html>");
+		lRadius.setToolTipText(
+				"<html>The radius (in a square) of the search in chunks.<br>Has a maximum of 62500 chunks, or 1 million blocks.</html>");
 		lRadius.setHorizontalAlignment(SwingConstants.CENTER);
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 2, 4, 1, 1, 0, 0, GridBagConstraints.PAGE_END);
 		jpanel.add(lRadius, constraints);
@@ -202,30 +205,33 @@ public class Main {
 		progressbar.setStringPainted(true);
 		setConstraints(insetDefault, GridBagConstraints.BOTH, 0, 1, 3, 1, 0, 0.05, GridBagConstraints.CENTER);
 		jpanel.add(progressbar, constraints);
-		
+
 		structurebox.setToolTipText("<html>The structure to be searched for.</html>");
 		setConstraints(insetDefault, GridBagConstraints.NONE, 0, 3, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(structurebox, constraints);
-		
+
 		worldtypebox.setToolTipText("<html>The world type used in the search.</html>");
 		setConstraints(insetDefault, GridBagConstraints.NONE, 1, 3, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(worldtypebox, constraints);
 
+		coordtypebox.setToolTipText(
+				"<html>Only applies to Nether Fortresses.<br><br>If you select \"Overworld\", it will output the<br>location you would put a portal in the<br>Overworld to get to the fortress.<br><br>If you select \"Nether\", it will output the Nether<br>coordinates of the fortress.</html>");
 		coordtypebox.setEnabled(false);
 		setConstraints(insetDefault, GridBagConstraints.NONE, 2, 3, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(coordtypebox, constraints);
-		
+
 		startX.setToolTipText("<html>The X position at the middle of the search.</html>");
 		startX.setPreferredSize(structurebox.getPreferredSize());
 		setConstraints(insetDefault, GridBagConstraints.NONE, 0, 5, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(startX, constraints);
-		
+
 		startZ.setToolTipText("<html>The Z position at the middle of the search.</html>");
 		startZ.setPreferredSize(worldtypebox.getPreferredSize());
 		setConstraints(insetDefault, GridBagConstraints.NONE, 1, 5, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(startZ, constraints);
-		
-		radius.setToolTipText("<html>The radius (in a square) of the search in chunks.<br>Has a maximum of 62500 chunks, or 1 million blocks.</html>");
+
+		radius.setToolTipText(
+				"<html>The radius (in a square) of the search in chunks.<br>Has a maximum of 62500 chunks, or 1 million blocks.</html>");
 		radius.setPreferredSize(coordtypebox.getPreferredSize());
 		setConstraints(insetDefault, GridBagConstraints.NONE, 2, 5, 1, 1, 0, 0.1, GridBagConstraints.CENTER);
 		jpanel.add(radius, constraints);
@@ -262,20 +268,61 @@ public class Main {
 		jpanel.add(seedPanel, constraints);
 		// seed panel ends here
 
-		output.setEditable(false);
+		output.setModel(new CoordTableModel());
+		Action copyAction = new AbstractAction("copyAction") {
+			private static final long serialVersionUID = 6540715274968882774L;
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if (e.getSource() instanceof JTable) {
+					StringBuilder contents = new StringBuilder();
+					boolean first = true;
+
+					for (int i : output.getSelectedRows()) {
+						if (first) {
+							first = false;
+						} else {
+							contents.append("\n");
+						}
+
+						contents.append(((CoordTableModel) output.getModel()).getRow(i).toString());
+					}
+
+					StringSelection selection = new StringSelection(contents.toString());
+					Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+				}
+			}
+		};
+		output.getActionMap().put("copyAction", copyAction);
+		output.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke("control C"),
+				"copyAction");
+		output.setAutoCreateRowSorter(true);
+		output.getTableHeader().setToolTipText("<html>Click on any one of the column headers to sort by it.</html>");
+		output.getTableHeader().setReorderingAllowed(false);
+		output.setDefaultRenderer(Float.class, new CoordTableModel.AngleRenderer());
+		output.setDefaultRenderer(Byte.class, new CoordTableModel.DirectionRenderer());
+		List<RowSorter.SortKey> sortKeys = new ArrayList<>(1);
+		sortKeys.add(new RowSorter.SortKey(2, SortOrder.ASCENDING));
+		output.getRowSorter().setSortKeys(sortKeys);
 		scrollpane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		scrollpane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
 		setConstraints(insetDefault, GridBagConstraints.BOTH, 3, 1, 1, 8, 1, 1, GridBagConstraints.CENTER);
 		jpanel.add(scrollpane, constraints);
 
 		try {
-			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+			String lafClass = UIManager.getSystemLookAndFeelClassName();
+			if (!lafClass.equals("com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel")) {
+				UIManager.setLookAndFeel(lafClass);
+			} else {
+				System.err.println("Nimbus Look and Feel not supported, reverting to default...");
+			}
 			SwingUtilities.updateComponentTreeUI(jframe);
 			JFrame.setDefaultLookAndFeelDecorated(true);
 		} catch (Exception e) {
 			errorProcedure(e, false);
 		}
 		structurebox.setRenderer(new ConditionalComboBoxRenderer());
+		UIManager.put("ToolTip.background", UIManager.getColor("window"));
 		if (UIManager.getLookAndFeel().getClass().getName()
 				.equals("com.sun.java.swing.plaf.windows.WindowsLookAndFeel")) {
 			progressbar.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
@@ -293,34 +340,22 @@ public class Main {
 				}
 			});
 		}
-		ToolTipManager.sharedInstance().setEnabled(showTooltips.getState());
+		ToolTipManager.sharedInstance().setEnabled(showTooltips.isSelected());
 		ToolTipManager.sharedInstance().setReshowDelay(0);
 		ToolTipManager.sharedInstance().setDismissDelay(60000);
-		
-		about.setIcon(
-				new ImageIcon(
-				((ImageIcon) UIManager.getIcon("OptionPane.informationIcon"))
-				.getImage()
-				.getScaledInstance(
-						about.getPreferredSize().height - about.getIconTextGap(), 
-						about.getPreferredSize().height - about.getIconTextGap(), 
-						Image.SCALE_SMOOTH
-				)));
-		
-		viewLog.setIcon(
-				new ImageIcon(
-				((ImageIcon) UIManager.getIcon("FileView.fileIcon"))
-				.getImage()
-				.getScaledInstance(
-						(int) ((viewLog.getPreferredSize().height - viewLog.getIconTextGap()) * 0.8),
-						viewLog.getPreferredSize().height - viewLog.getIconTextGap(), 
-						Image.SCALE_SMOOTH
-				)));
-		
+
+		about.setIcon(new ImageIcon(((ImageIcon) UIManager.getIcon("OptionPane.informationIcon")).getImage()
+				.getScaledInstance(about.getPreferredSize().height - about.getIconTextGap(),
+						about.getPreferredSize().height - about.getIconTextGap(), Image.SCALE_SMOOTH)));
+
+		viewLog.setIcon(new ImageIcon(((ImageIcon) UIManager.getIcon("FileView.fileIcon")).getImage().getScaledInstance(
+				(int) ((viewLog.getPreferredSize().height - viewLog.getIconTextGap()) * 0.8),
+				viewLog.getPreferredSize().height - viewLog.getIconTextGap(), Image.SCALE_SMOOTH)));
+
 		changeFont(jpanel, defaultFont);
 		setFocus(jpanel, false);
 		scrollpane.setPreferredSize(scrollpane.getSize());
-		jframe.setSize(jframe.getWidth() + (100 - scrollpane.getWidth()), jframe.getMinimumSize().height);
+		jframe.setSize(jframe.getWidth() + 100 - scrollpane.getWidth(), jframe.getMinimumSize().height);
 		jframe.setVisible(true);
 	}
 
@@ -363,9 +398,7 @@ public class Main {
 			group.add(versionitem);
 			boolean disabled = false;
 			try {
-				if (minecraftInstallation.newLauncherProfile(v).getVersionId() == null) { // versions that are installed
-																							// but don't have a profile
-																							// get disabled here
+				if (minecraftInstallation.newLauncherProfile(v).getVersionId() == null) { // versions that are installed but don't have a profile get disabled here
 					disabled = true;
 				}
 			} catch (Exception e1) { // versions that aren't installed get disabled here
@@ -428,20 +461,16 @@ public class Main {
 					}
 				}
 			} else {
-				appendText("Seed is empty");
+				errorProcedure("Seed is empty", false);
 			}
 		});
 		structurebox.addActionListener(e -> {
 			if (isStructTypeNetherFortress()) {
 				lCoordType.setEnabled(true);
-				lCoordType.setToolTipText("<html>Only applies to Nether Fortresses.<br><br>If you select \"Overworld\", it will output the<br>location you would put a portal in the<br>Overworld to get to the fortress.<br><br>If you select \"Nether\", it will output the Nether<br>coordinates of the fortress.</html>");
 				coordtypebox.setEnabled(true);
-				coordtypebox.setToolTipText("<html>Only applies to Nether Fortresses.<br><br>If you select \"Overworld\", it will output the<br>location you would put a portal in the<br>Overworld to get to the fortress.<br><br>If you select \"Nether\", it will output the Nether<br>coordinates of the fortress.</html>");
 			} else {
 				lCoordType.setEnabled(false);
-				lCoordType.setToolTipText(null);
 				coordtypebox.setEnabled(false);
-				coordtypebox.setToolTipText(null);
 			}
 			if (String.valueOf(structurebox.getSelectedItem()).equals("End City")) {
 				checkbox.setVisible(true);
@@ -473,7 +502,7 @@ public class Main {
 			JOptionPane.showMessageDialog(jframe, text, "Structure Finder: About", JOptionPane.INFORMATION_MESSAGE);
 		});
 		showTooltips.addActionListener(e -> {
-			ToolTipManager.sharedInstance().setEnabled(showTooltips.getState());
+			ToolTipManager.sharedInstance().setEnabled(showTooltips.isSelected());
 		});
 		viewLog.addActionListener(e -> {
 			JScrollPane scrollPane = new JScrollPane(logArea);
@@ -481,7 +510,7 @@ public class Main {
 			scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
 			scrollPane.setPreferredSize(
 					new Dimension((int) (screenSize.getHeight() / 1.4), (int) (screenSize.getHeight() / 1.4)));
-			
+
 			JOptionPane.showMessageDialog(jframe, scrollPane, "Structure Finder: Log", JOptionPane.PLAIN_MESSAGE);
 		});
 	}
@@ -512,9 +541,10 @@ public class Main {
 		constraints.anchor = anchor;
 	}
 
-	public static void appendText(String i) {
-		output.append(i + "\n");
-		output.setCaretPosition(output.getDocument().getLength());
+	public static void addRow(CoordData cd) {
+		SwingUtilities.invokeLater(() -> {
+			((CoordTableModel) output.getModel()).addRow(cd);
+		});
 	}
 
 	private static Resolution getResolution() {
@@ -525,7 +555,7 @@ public class Main {
 	}
 
 	public static void executeFinder() {
-		output.setText("");
+		((CoordTableModel) output.getModel()).clearRows();
 		if (String.valueOf(structurebox.getSelectedItem()).equals("Stronghold")) {
 			progressbar.setMinimum(0);
 			progressbar.setMaximum(127);
@@ -541,7 +571,7 @@ public class Main {
 		return progressbar;
 	}
 
-	public static JTextArea getTextArea() {
+	public static JTable getTextArea() {
 		return output;
 	}
 
@@ -658,7 +688,7 @@ public class Main {
 		}
 		return version;
 	}
-	
+
 	public static void logAppend(String s) {
 		logArea.append(s);
 	}
@@ -670,17 +700,9 @@ public class Main {
 		boolean nether_fortress = RecognisedVersion.isNewerOrEqualTo(version, RecognisedVersion._b1_9_pre1);
 		boolean desert_temple = RecognisedVersion.isNewerOrEqualTo(version, RecognisedVersion._12w21a);
 		boolean jungle_temple = RecognisedVersion.isNewerOrEqualTo(version, RecognisedVersion._12w22a);
-		boolean witch_hut = RecognisedVersion.isNewerOrEqualTo(version, RecognisedVersion._1_4_2); // closest compatible
-																									// version to 12w40a
-																									// in amidst
-		boolean ocean_monument = RecognisedVersion.isNewerOrEqualTo(version, RecognisedVersion._1_8); // closest
-																										// compatible
-																										// version to
-																										// 14w25a in
-																										// amidst
-		boolean end_city = RecognisedVersion.isNewerOrEqualTo(version, RecognisedVersion._15w32c); // closest compatible
-																									// version to 15w31a
-																									// in amidst
+		boolean witch_hut = RecognisedVersion.isNewerOrEqualTo(version, RecognisedVersion._1_4_2); // closest compatible version to 12w40a in amidst
+		boolean ocean_monument = RecognisedVersion.isNewerOrEqualTo(version, RecognisedVersion._1_8); // closest compatible version to 14w25a in amidst
+		boolean end_city = RecognisedVersion.isNewerOrEqualTo(version, RecognisedVersion._15w32c); // closest compatible version to 15w31a in amidst
 		boolean igloo = RecognisedVersion.isNewer(version, RecognisedVersion._15w42a);
 		boolean mansion = RecognisedVersion.isNewer(version, RecognisedVersion._16w38a);
 		boolean ocean_ruin = RecognisedVersion.isNewerOrEqualTo(version, RecognisedVersion._18w09a);
@@ -700,7 +722,7 @@ public class Main {
 				new ConditionalString("Shipwreck", shipwreck),
 				new ConditionalString("Pillager Outpost", pillager_outpost) };
 
-		DefaultComboBoxModel<ConditionalString> model = new DefaultComboBoxModel<ConditionalString>(structureTypes);
+		DefaultComboBoxModel<ConditionalString> model = new DefaultComboBoxModel<>(structureTypes);
 		structurebox.setModel(model);
 		structurebox.addActionListener(new ConditionalComboBoxListener(structurebox));
 	}
