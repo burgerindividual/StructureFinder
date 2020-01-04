@@ -148,7 +148,6 @@ public class Main {
 
 		jframe.setMinimumSize(minSize);
 		jframe.setMaximumSize(maxSize);
-		jframe.setResizable(false);
 		jframe.add(jpanel);
 
 		Insets insetDefault = new Insets(jframe.getHeight() / 40, jframe.getWidth() / 50, jframe.getHeight() / 40,
