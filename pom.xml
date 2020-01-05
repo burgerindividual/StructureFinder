@@ -14,7 +14,7 @@
 	</repositories>
 	<description>Quickly finds minecraft structures</description>
 	<build>
-		<sourceDirectory>src</sourceDirectory>
+		<sourceDirectory>src/java</sourceDirectory>
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
