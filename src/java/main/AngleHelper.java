@@ -6,7 +6,7 @@ public class AngleHelper {
 	private static final double[] COS_TAB = new double[257];
 	
 	public static float calculateAngle(long x1, long y1, long x2, long y2) {
-		return wrapDegrees((float) (atan2(y1 - y2, x1 - x2) * (180F / (float) Math.PI)) - 90.0F);
+		return wrapDegrees((float) (atan2(y2 - y1, x2 - x1) * (180F / (float) Math.PI)) - 90);
 	}
 	
 	public static byte getAngleId(float angle) {

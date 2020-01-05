@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.burgerguy.structurefinder</groupId>
 	<artifactId>StructureFinder</artifactId>
-	<version>v1.3.1b</version>
+	<version>v1.3.2b</version>
 	<name>StructureFinder</name>
 	<repositories>
 		<repository>
@@ -43,12 +43,17 @@
 	</build>
 	<dependencies>
 		<dependency>
-			<!--<groupId>com.github.toolbox4minecraft</groupId>
-			<artifactId>amidst</artifactId>
-			<version>master-SNAPSHOT</version>-->
+			<!--<groupId>com.github.toolbox4minecraft</groupId> <artifactId>amidst</artifactId> 
+				<version>master-SNAPSHOT</version> -->
 			<groupId>com.github.burgerguy</groupId>
 			<artifactId>amidst-changes</artifactId>
 			<version>combined-changes-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.11</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 </project>
