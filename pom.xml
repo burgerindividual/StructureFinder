@@ -47,7 +47,7 @@
 				<version>master-SNAPSHOT</version> -->
 			<groupId>com.github.burgerguy</groupId>
 			<artifactId>amidst-changes</artifactId>
-			<version>combined-changes-SNAPSHOT</version>
+			<version>master-changes-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
