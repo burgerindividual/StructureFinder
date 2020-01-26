@@ -43,11 +43,12 @@
 	</build>
 	<dependencies>
 		<dependency>
-			<!--<groupId>com.github.toolbox4minecraft</groupId> <artifactId>amidst</artifactId> 
-				<version>master-SNAPSHOT</version> -->
-			<groupId>com.github.burgerguy</groupId>
+			<groupId>com.github.toolbox4minecraft</groupId>
+			<artifactId>amidst</artifactId> 
+			<version>master-SNAPSHOT</version>
+			<!--<groupId>com.github.burgerguy</groupId>
 			<artifactId>amidst-changes</artifactId>
-			<version>master-changes-SNAPSHOT</version>
+			<version>master-changes-SNAPSHOT</version>-->
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
