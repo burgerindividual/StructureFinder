@@ -62,6 +62,7 @@ import javax.swing.plaf.basic.BasicProgressBarUI;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.html.HTMLDocument;
 
+import amidst.logging.AmidstLogger;
 import amidst.mojangapi.file.DotMinecraftDirectoryNotFoundException;
 import amidst.mojangapi.file.MinecraftInstallation;
 import amidst.mojangapi.file.VersionList;
@@ -120,11 +121,12 @@ public class Main {
 		System.setOut(LogBuffer.create(System.out));
 		System.setErr(LogBuffer.create(System.err));
 
-		System.out.println("Running from Java version " + System.getProperty("java.version"));
+		AmidstLogger.info("Running from Java version " + System.getProperty("java.version") + ", vendor " + System.getProperty("java.vendor"));
 
+		MenuScroller.setScrollerFor(versionMenu, 10);
 		try {
 			putVersionItemsAndInit(versionMenu, versiongroup, args.length > 0 ? new File(args[0]) : null);
-		} catch (DotMinecraftDirectoryNotFoundException e1) {
+		} catch (DotMinecraftDirectoryNotFoundException e) {
 			errorProcedure(".minecraft directory not found", true);
 		} catch (Exception e) {
 			errorProcedure(e, false);
@@ -313,7 +315,7 @@ public class Main {
 			if (!lafClass.equals("com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel")) {
 				UIManager.setLookAndFeel(lafClass);
 			} else {
-				System.err.println("Nimbus Look and Feel not supported, reverting to default...");
+				AmidstLogger.warn("Nimbus Look and Feel not supported, reverting to default...");
 			}
 			SwingUtilities.updateComponentTreeUI(jframe);
 			JFrame.setDefaultLookAndFeelDecorated(true);
@@ -368,7 +370,7 @@ public class Main {
 							&& !RecognisedVersion.fromName(v.getId()).equals(RecognisedVersion.UNKNOWN))
 					.map(v -> v.getId()).collect(Collectors.toList());
 		} catch (FormatException | IOException e) {
-			System.err.println("Error getting versions list from launchermeta.mojang.com");
+			AmidstLogger.warn("Error getting versions list from launchermeta.mojang.com");
 			try {
 				versions = VersionList.newLocalVersionList().getVersions().stream()
 						.filter(v -> v.getType().equals(ReleaseType.RELEASE)
@@ -636,7 +638,11 @@ public class Main {
 	}
 
 	public static void errorProcedure(String s, boolean exit) {
-		System.err.println(s);
+		if (exit) {
+			AmidstLogger.error(s);
+		} else {
+			AmidstLogger.warn(s);
+		}
 		SwingUtilities.invokeLater(() -> {
 			final JTextArea textArea = new JTextArea();
 			textArea.setFont(new Font(Font.decode(null).getName(), Font.PLAIN, 10));
