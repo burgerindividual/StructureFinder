@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import javax.swing.SwingUtilities;
 
+import amidst.logging.AmidstLogger;
 import amidst.mojangapi.file.LauncherProfile;
 import amidst.mojangapi.file.MinecraftInstallation;
 import amidst.mojangapi.minecraftinterface.MinecraftInterface;
@@ -71,13 +72,20 @@ public class StructureFinder extends Thread {
 		createWorld(worldSeed, worldType);
 		locationChecker = parseLocationChecker(structureType, worldSeed);
 		Main.setIntermediate(false);
-		if (!isStrongholdSearch) {
-			scanForStructure(locationChecker, startPos, resolution, radius);
-		} else {
-			strongholdSearch(worldSeed.getLong(), radius, startPos);
+		try {
+			if (!isStrongholdSearch) {
+				scanForStructure(locationChecker, startPos, resolution, radius);
+			} else {
+				strongholdSearch(worldSeed.getLong(), radius, startPos);
+			}
+		} catch (InterruptedException | InvocationTargetException e) {
+			AmidstLogger.info("Stopping search...");
+			SwingUtilities.invokeLater(() -> Main.getProgressBar().setValue(Main.getProgressBar().getMinimum()));
 		}
 		world.dispose();
 		Main.setChangeVersions(true);
+		Main.setButtonAction(true);
+		Main.setButtonEnabled(true);
 	}
 	
 	public void createWorld(WorldSeed seed, WorldType type) {
@@ -202,7 +210,7 @@ public class StructureFinder extends Thread {
 		worldBuilder = WorldBuilder.createSilentPlayerless();
 	}
 	
-	private void strongholdSearch(long seed, int radius, CoordinatesInWorld start) {
+	private void strongholdSearch(long seed, int radius, CoordinatesInWorld start) throws InvocationTargetException, InterruptedException {
 		StrongholdProducer_128Algorithm shp = new StrongholdProducer_128Algorithm(seed, world.getBiomeDataOracle(),
 				versionFeatures.getValidBiomesAtMiddleOfChunk_Stronghold());
 		List<CoordinatesInWorld> coords = shp.getWorldIcons().stream().map(icon -> icon.getCoordinates())
@@ -222,7 +230,7 @@ public class StructureFinder extends Thread {
 		setProgress(Main.getProgressBar().getMinimum());
 	}
 	
-	public void scanForStructure(LocationChecker checker, CoordinatesInWorld start, Resolution res, int r) {
+	public void scanForStructure(LocationChecker checker, CoordinatesInWorld start, Resolution res, int r) throws InvocationTargetException, InterruptedException {
 		boolean flag1 = Main.isStructTypeNetherFortress();
 		boolean flag2 = Main.isCoordTypeNether();
 		CoordinatesInWorld newCoords = null;
@@ -251,12 +259,8 @@ public class StructureFinder extends Thread {
 		setProgress(Main.getProgressBar().getMinimum());
 	}
 	
-	private void setProgress(int i) {
-		try {
-			SwingUtilities.invokeAndWait(() -> Main.getProgressBar().setValue(i));
-		} catch (InvocationTargetException | InterruptedException e) {
-			Main.errorProcedure(e, false);
-		}
+	private void setProgress(int i) throws InvocationTargetException, InterruptedException {
+		SwingUtilities.invokeAndWait(() -> Main.getProgressBar().setValue(i));
 	}
 	
 	public WorldSeed getSeed() {

@@ -115,12 +115,8 @@ public class Main {
 	private static ButtonGroup versiongroup = new ButtonGroup();
 	private static StructureFinder sf;
 	private static GridBagConstraints constraints = new GridBagConstraints();
-	private static JTextArea logArea = new JTextArea();
 
 	public static void main(String[] args) {
-		System.setOut(LogBuffer.create(System.out));
-		System.setErr(LogBuffer.create(System.err));
-
 		AmidstLogger.info("Running from Java version " + System.getProperty("java.version") + ", vendor " + System.getProperty("java.vendor"));
 
 		MenuScroller.setScrollerFor(versionMenu, 10);
@@ -141,11 +137,6 @@ public class Main {
 
 	@SuppressWarnings("unchecked")
 	private static void swingSetup() {
-		logArea.setFont(new Font(Font.decode(null).getName(), Font.PLAIN, 10));
-		logArea.setEditable(false);
-		logArea.setWrapStyleWord(true);
-		logArea.setLineWrap(true);
-
 		jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
 		jframe.setMinimumSize(minSize);
@@ -259,7 +250,7 @@ public class Main {
 				GridBagConstraints.HORIZONTAL, 0, 2, 1, 1, 1, 0, GridBagConstraints.PAGE_END);
 		seedPanel.add(seed, constraints);
 
-		jbutton.setToolTipText("<html>Click to start the search.</html>");
+		jbutton.setToolTipText("<html>Click to start / cancel the search.</html>");
 		setConstraints(0, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50,
 				GridBagConstraints.NONE, 1, 2, 1, 1, 0, 0.1, GridBagConstraints.PAGE_END);
 		seedPanel.add(jbutton, constraints);
@@ -429,41 +420,48 @@ public class Main {
 
 	public static void initListeners() {
 		jbutton.addActionListener(e -> {
-			if (!seed.getText().trim().isEmpty()) {
-				Resolution res = getResolution();
-				try {
-					if (isStructTypeNetherFortress() && isCoordTypeNether()) {
-						startX.setValue((int) roundToRes(Resolution.NETHER_CHUNK, (int) startX.getValue()));
-						startZ.setValue((int) roundToRes(Resolution.NETHER_CHUNK, (int) startZ.getValue()));
-					} else {
-						startX.setValue((int) roundToRes(res, (int) startX.getValue()));
-						startZ.setValue((int) roundToRes(res, (int) startZ.getValue()));
+			if (jbutton.getText().equals("Run")) {
+				if (!seed.getText().trim().isEmpty()) {
+					Resolution res = getResolution();
+					try {
+						if (isStructTypeNetherFortress() && isCoordTypeNether()) {
+							startX.setValue((int) roundToRes(Resolution.NETHER_CHUNK, (int) startX.getValue()));
+							startZ.setValue((int) roundToRes(Resolution.NETHER_CHUNK, (int) startZ.getValue()));
+						} else {
+							startX.setValue((int) roundToRes(res, (int) startX.getValue()));
+							startZ.setValue((int) roundToRes(res, (int) startZ.getValue()));
+						}
+						radius.commitEdit();
+						startX.commitEdit();
+						startZ.commitEdit();
+					} catch (ParseException e1) {
+						errorProcedure(e1, false);
 					}
-					radius.commitEdit();
-					startX.commitEdit();
-					startZ.commitEdit();
-				} catch (ParseException e1) {
-					errorProcedure(e1, false);
-				}
-				if (!sf.isAlive()) {
-					setIntermediate(true);
-					if (isStructTypeNetherFortress() && !isCoordTypeNether()) {
-						sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
-								String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue() >> 3,
-								CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res,
-								checkbox.isSelected());
-						executeFinder();
-					} else {
-						sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
-								String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue(),
-								CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res,
-								checkbox.isSelected());
-						executeFinder();
+					if (!sf.isAlive()) {
+						setIntermediate(true);
+						if (isStructTypeNetherFortress() && !isCoordTypeNether()) {
+							sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
+									String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue() >> 3,
+									CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res,
+									checkbox.isSelected());
+							executeFinder();
+						} else {
+							sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
+									String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue(),
+									CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res,
+									checkbox.isSelected());
+							executeFinder();
+						}
+						setButtonAction(false);
 					}
+				} else {
+					errorProcedure("Seed is empty", false);
 				}
 			} else {
-				errorProcedure("Seed is empty", false);
+				sf.interrupt();
+				setButtonEnabled(false);
 			}
+			
 		});
 		structurebox.addActionListener(e -> {
 			if (isStructTypeNetherFortress()) {
@@ -506,6 +504,12 @@ public class Main {
 			ToolTipManager.sharedInstance().setEnabled(showTooltips.isSelected());
 		});
 		viewLog.addActionListener(e -> {
+			JTextArea logArea = new JTextArea();
+			logArea.setFont(new Font(Font.decode(null).getName(), Font.PLAIN, 10));
+			logArea.setEditable(false);
+			logArea.setWrapStyleWord(true);
+			logArea.setLineWrap(true);
+			logArea.setText(AmidstLogger.getAllMessages());
 			JScrollPane scrollPane = new JScrollPane(logArea);
 			scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 			scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -694,8 +698,20 @@ public class Main {
 		return version;
 	}
 
-	public static void logAppend(String s) {
-		logArea.append(s);
+	public static void setButtonAction(boolean t) {
+		SwingUtilities.invokeLater(() -> {
+			if (t) {
+				jbutton.setText("Run");
+			} else {
+				jbutton.setText("Cancel");
+			}
+		});
+	}
+	
+	public static void setButtonEnabled(boolean enabled) {
+		SwingUtilities.invokeLater(() -> {
+			jbutton.setEnabled(enabled);
+		});
 	}
 
 	private static void updateStructures(RecognisedVersion version) {
