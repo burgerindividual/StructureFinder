@@ -169,7 +169,11 @@ public class StructureFinder extends Thread {
 					versionFeatures.getSeedForStructure_BuriedTreasure());
 		case "Pillager Outpost":
 			structureOffset = 4;
-			return new PillagerOutpostLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
+			return new PillagerOutpostLocationChecker(
+					seed.getLong(),
+					world.getBiomeDataOracle(),
+					parseLocationChecker("Village", seed),
+					versionFeatures.getOutpostVillageAvoidDistance(),
 					versionFeatures.getValidBiomesForStructure_PillagerOutpost());
 		default:
 			Main.errorProcedure(
