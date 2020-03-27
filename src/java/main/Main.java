@@ -374,6 +374,8 @@ public class Main {
 				errorProcedure("Error getting versions list from online and local", true);
 			}
 		}
+		String latestVersion = RecognisedVersion.values()[1].getName();
+		if (!versions.contains(latestVersion)) versions.add(0, latestVersion);
 
 		MinecraftInstallation minecraftInstallation = minecraftDirectory != null
 				? MinecraftInstallation.newLocalMinecraftInstallation(minecraftDirectory)
