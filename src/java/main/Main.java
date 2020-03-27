@@ -13,12 +13,13 @@ import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.ParseException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -55,6 +56,7 @@ import javax.swing.SortOrder;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.table.TableRowSorter;
 import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
 import javax.swing.event.HyperlinkEvent;
@@ -82,55 +84,53 @@ public class Main {
 	public static final Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 	public static final Dimension minSize = new Dimension(600, 320);
 	public static final Dimension maxSize = new Dimension(800, 320);
-	public static Font defaultFont = new Font(Font.decode(null).getName(), Font.PLAIN, 12);
-	private static JFrame jframe = new JFrame("StructureFinder");
-	private static JPanel jpanel = new JPanel(new GridBagLayout());
-	private static JComboBox<String> coordtypebox = new JComboBox<>(DIMENSIONS);
-	private static JComboBox<ConditionalString> structurebox = new JComboBox<>();
-	private static JComboBox<String> worldtypebox = new JComboBox<>(WORLD_TYPES);
-	private static JButton jbutton = new JButton("Run");
-	private static JTextField seed = new JTextField();
-	private static JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 62500, 1));
-	private static JSpinner startX = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
-	private static JSpinner startZ = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
-	private static JCheckBox checkbox = new JCheckBox("Include Unlikely End Cities", false);
-	private static JPanel checkboxpanel = new JPanel(new GridBagLayout());
-	private static JTable output = new JTable();
-	private static JScrollPane scrollpane = new JScrollPane(output);
-	private static JProgressBar progressbar = new JProgressBar();
-	private static JLabel lRadius = new JLabel("Radius (Chunks)");
-	private static JLabel lStartX = new JLabel("Starting X Pos");
-	private static JLabel lStartZ = new JLabel("Starting Z Pos");
-	private static JLabel lSeed = new JLabel("Seed");
-	private static JLabel lCoordType = new JLabel("Dimension");
-	private static JLabel lStructure = new JLabel("Structure");
-	private static JLabel lWorldType = new JLabel("World Type");
-	private static JPanel seedPanel = new JPanel(new GridBagLayout());
-	private static JMenuBar menubar = new JMenuBar();
-	private static JMenu versionMenu = new JMenu("Version");
-	private static JMenu helpMenu = new JMenu("Help");
-	private static JMenuItem about = new JMenuItem("About StructureFinder");
-	private static JMenuItem viewLog = new JMenuItem("View Log");
-	private static JCheckBoxMenuItem showTooltips = new JCheckBoxMenuItem("Show Tooltips on Hover", true);
-	private static ButtonGroup versiongroup = new ButtonGroup();
+	public static final Font defaultFont = new Font(Font.decode(null).getName(), Font.PLAIN, 12);
+	private static final JFrame jframe = new JFrame("StructureFinder");
+	private static final JPanel jpanel = new JPanel(new GridBagLayout());
+	private static final JComboBox<String> coordtypebox = new JComboBox<>(DIMENSIONS);
+	private static final JComboBox<ConditionalString> structurebox = new JComboBox<>();
+	private static final JComboBox<String> worldtypebox = new JComboBox<>(WORLD_TYPES);
+	private static final JButton jbutton = new JButton("Run");
+	private static final JTextField seed = new JTextField();
+	private static final JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 62500, 1));
+	private static final JSpinner startX = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
+	private static final JSpinner startZ = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
+	private static final JCheckBox checkbox = new JCheckBox("Include Unlikely End Cities", false);
+	private static final JPanel checkboxpanel = new JPanel(new GridBagLayout());
+	private static final JTable output = new JTable();
+	private static final JScrollPane scrollpane = new JScrollPane(output);
+	private static final JProgressBar progressbar = new JProgressBar();
+	private static final JLabel lRadius = new JLabel("Radius (Chunks)");
+	private static final JLabel lStartX = new JLabel("Starting X Pos");
+	private static final JLabel lStartZ = new JLabel("Starting Z Pos");
+	private static final JLabel lSeed = new JLabel("Seed");
+	private static final JLabel lCoordType = new JLabel("Dimension");
+	private static final JLabel lStructure = new JLabel("Structure");
+	private static final JLabel lWorldType = new JLabel("World Type");
+	private static final JPanel seedPanel = new JPanel(new GridBagLayout());
+	private static final JMenuBar menubar = new JMenuBar();
+	private static final JMenu versionMenu = new JMenu("Version");
+	private static final JMenu helpMenu = new JMenu("Help");
+	private static final JMenuItem about = new JMenuItem("About StructureFinder");
+	private static final JMenuItem viewLog = new JMenuItem("View Log");
+	private static final JCheckBoxMenuItem showTooltips = new JCheckBoxMenuItem("Show Tooltips on Hover", true);
+	private static final ButtonGroup versiongroup = new ButtonGroup();
+	private static final GridBagConstraints constraints = new GridBagConstraints();
+	
 	private static StructureFinder sf;
-	private static GridBagConstraints constraints = new GridBagConstraints();
 
 	public static void main(String[] args) {
 		AmidstLogger.info("Running from Java version " + System.getProperty("java.version") + ", vendor " + System.getProperty("java.vendor"));
 
 		MenuScroller.setScrollerFor(versionMenu, 10);
 		try {
-			putVersionItemsAndInit(versionMenu, versiongroup, args.length > 0 ? new File(args[0]) : null);
+			putVersionItemsAndInit(versionMenu, versiongroup, args.length > 0 ? Paths.get(args[0]) : null);
 		} catch (DotMinecraftDirectoryNotFoundException e) {
 			errorProcedure(".minecraft directory not found", true);
 		} catch (Exception e) {
 			errorProcedure(e, false);
 		}
-
-		sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
-				String.valueOf(structurebox.getSelectedItem()), (Integer) radius.getValue(),
-				CoordinatesInWorld.from((int) startX.getValue(), (int) startX.getValue()), Resolution.CHUNK, false);
+		
 		swingSetup();
 		initListeners();
 	}
@@ -263,23 +263,27 @@ public class Main {
 		output.setModel(new CoordTableModel());
 		Action copyAction = new AbstractAction("copyAction") {
 			private static final long serialVersionUID = 6540715274968882774L;
-
+			
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				if (e.getSource() instanceof JTable) {
+					JTable table = (JTable) e.getSource();
 					StringBuilder contents = new StringBuilder();
 					boolean first = true;
-
-					for (int i : output.getSelectedRows()) {
+					
+					for (int i : table.getSelectedRows()) {
 						if (first) {
 							first = false;
 						} else {
 							contents.append("\n");
 						}
-
-						contents.append(((CoordTableModel) output.getModel()).getRow(i).toString());
+						
+						contents.append(((CoordTableModel) table.getModel()).getRow(
+										((TableRowSorter<?>)table.getRowSorter()).convertRowIndexToModel(i)
+									).toString()
+								);
 					}
-
+					
 					StringSelection selection = new StringSelection(contents.toString());
 					Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
 				}
@@ -293,8 +297,7 @@ public class Main {
 		output.getTableHeader().setReorderingAllowed(false);
 		output.setDefaultRenderer(Float.class, new CoordTableModel.AngleRenderer());
 		output.setDefaultRenderer(Byte.class, new CoordTableModel.DirectionRenderer());
-		List<RowSorter.SortKey> sortKeys = new ArrayList<>(1);
-		sortKeys.add(new RowSorter.SortKey(2, SortOrder.ASCENDING));
+		List<RowSorter.SortKey> sortKeys = Arrays.asList(new RowSorter.SortKey[] { new RowSorter.SortKey(2, SortOrder.ASCENDING) });
 		output.getRowSorter().setSortKeys(sortKeys);
 		scrollpane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		scrollpane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -351,7 +354,7 @@ public class Main {
 		jframe.setVisible(true);
 	}
 
-	public static void putVersionItemsAndInit(JMenu menu, ButtonGroup group, File minecraftDirectory)
+	public static void putVersionItemsAndInit(JMenu menu, ButtonGroup group, Path minecraftDirectory)
 			throws DotMinecraftDirectoryNotFoundException {
 		boolean selected = true;
 		List<String> versions = null;
@@ -380,7 +383,8 @@ public class Main {
 			versionitem.addActionListener((e) -> { // create an action listener for every version menu item
 				RecognisedVersion ver = getSelectedVersion();
 				try {
-					StructureFinder.init(ver, minecraftDirectory);
+					sf.dispose();
+					sf = new StructureFinder(ver, minecraftInstallation);
 					updateStructures(ver);
 				} catch (Exception ex) {
 					errorProcedure(ex, false);
@@ -404,7 +408,7 @@ public class Main {
 			if (!disabled && selected) {
 				versionitem.setSelected(selected);
 				try {
-					StructureFinder.init(versionitem.getVersion(), minecraftDirectory);
+					sf = new StructureFinder(versionitem.getVersion(), minecraftInstallation);
 					updateStructures(versionitem.getVersion());
 				} catch (Exception e) {
 					errorProcedure("Error initializing with Minecraft version " + v, true);
@@ -440,17 +444,15 @@ public class Main {
 					if (!sf.isAlive()) {
 						setIntermediate(true);
 						if (isStructTypeNetherFortress() && !isCoordTypeNether()) {
-							sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
+							executeFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
 									String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue() >> 3,
 									CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res,
 									checkbox.isSelected());
-							executeFinder();
 						} else {
-							sf = new StructureFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
+							executeFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
 									String.valueOf(structurebox.getSelectedItem()), (int) radius.getValue(),
 									CoordinatesInWorld.from((int) startX.getValue(), (int) startZ.getValue()), res,
 									checkbox.isSelected());
-							executeFinder();
 						}
 						setButtonAction(false);
 					}
@@ -559,17 +561,18 @@ public class Main {
 		return Resolution.CHUNK;
 	}
 
-	public static void executeFinder() {
+	public static void executeFinder(String seed, String worldType, String structureType, int radius,
+			CoordinatesInWorld startPos, Resolution resolution, boolean unlikelyEndCities) {
 		((CoordTableModel) output.getModel()).clearRows();
 		if (String.valueOf(structurebox.getSelectedItem()).equals("Stronghold")) {
 			progressbar.setMinimum(0);
 			progressbar.setMaximum(127);
 		} else {
-			progressbar.setMinimum(-(Integer) radius.getValue());
-			progressbar.setMaximum((Integer) radius.getValue());
+			progressbar.setMinimum(-(Integer) Main.radius.getValue());
+			progressbar.setMaximum((Integer) Main.radius.getValue());
 		}
 		progressbar.setValue(progressbar.getMinimum());
-		sf.start();
+		sf.run(seed, worldType, structureType, radius, startPos, resolution, unlikelyEndCities);
 	}
 
 	public static JProgressBar getProgressBar() {

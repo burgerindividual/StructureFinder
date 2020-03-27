@@ -1,16 +1,18 @@
 package main;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-
 import javax.swing.SwingUtilities;
 
 import amidst.logging.AmidstLogger;
-import amidst.mojangapi.file.LauncherProfile;
 import amidst.mojangapi.file.MinecraftInstallation;
 import amidst.mojangapi.minecraftinterface.MinecraftInterface;
 import amidst.mojangapi.minecraftinterface.MinecraftInterfaceCreationException;
@@ -24,157 +26,158 @@ import amidst.mojangapi.world.WorldSeed;
 import amidst.mojangapi.world.WorldType;
 import amidst.mojangapi.world.coordinates.CoordinatesInWorld;
 import amidst.mojangapi.world.coordinates.Resolution;
-import amidst.mojangapi.world.icon.locationchecker.BuriedTreasureLocationChecker;
 import amidst.mojangapi.world.icon.locationchecker.LocationChecker;
-import amidst.mojangapi.world.icon.locationchecker.NetherFortressAlgorithm;
-import amidst.mojangapi.world.icon.locationchecker.PillagerOutpostLocationChecker;
-import amidst.mojangapi.world.icon.locationchecker.ScatteredFeaturesLocationChecker;
-import amidst.mojangapi.world.icon.locationchecker.VillageLocationChecker;
-import amidst.mojangapi.world.icon.locationchecker.WoodlandMansionLocationChecker;
-import amidst.mojangapi.world.icon.producer.StrongholdProducer_128Algorithm;
+import amidst.mojangapi.world.icon.producer.CachedWorldIconProducer;
 import amidst.mojangapi.world.versionfeatures.DefaultVersionFeatures;
 import amidst.mojangapi.world.versionfeatures.VersionFeatures;
 import amidst.parsing.FormatException;
 
-public class StructureFinder extends Thread {
-	private static VersionFeatures versionFeatures;
-	private static MinecraftInterface mcInterface;
-	private static WorldBuilder worldBuilder;
-	private final WorldSeed worldSeed;
-	private final WorldType worldType;
-	private final String structureType;
-	private final int radius;
-	private final CoordinatesInWorld startPos;
+import static amidst.mojangapi.world.versionfeatures.FeatureKey.*;
+
+public class StructureFinder {
+	private static final WorldBuilder worldBuilder = WorldBuilder.createSilentPlayerless();
 	
-	private final Resolution resolution;
-	private final boolean unlikelyEndCities;
+	private final ExecutorService structureWorker;
+	private final MinecraftInterface mcInterface;
 	
-	private LocationChecker locationChecker;
-	private World world;
-	private int structureOffset;
-	private boolean isStrongholdSearch = false;
+	public StructureFinder(RecognisedVersion ver, MinecraftInstallation mi)
+			throws FormatException, IOException, MinecraftInterfaceCreationException {
+		this.structureWorker = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+				new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
+					@Override
+					public Thread newThread(Runnable r) {
+						return new Thread(r, "StructureWorker");
+					}
+				});
+		this.mcInterface = MinecraftInterfaces.fromLocalProfile(mi.newLauncherProfile(ver.getName()));
+	}
 	
-	public StructureFinder(String worldSeed, String worldType, String structureType, int radius,
+	public void run(String seed, String worldType, String structureType, int radius,
 			CoordinatesInWorld startPos, Resolution resolution, boolean unlikelyEndCities) {
-		this.worldSeed = WorldSeed.fromUserInput(worldSeed);
-		this.worldType = parseWorldType(worldType);
-		this.structureType = structureType;
-		this.radius = radius;
-		this.startPos = startPos;
-		this.resolution = resolution;
-		this.unlikelyEndCities = unlikelyEndCities;
-		setName("StructureWorker");
-	}
-	
-	@Override
-	public void run() {
-		Main.setChangeVersions(false);
-		createWorld(worldSeed, worldType);
-		locationChecker = parseLocationChecker(structureType, worldSeed);
-		Main.setIntermediate(false);
-		try {
-			if (!isStrongholdSearch) {
-				scanForStructure(locationChecker, startPos, resolution, radius);
-			} else {
-				strongholdSearch(worldSeed.getLong(), radius, startPos);
+		structureWorker.execute(() -> {
+			Main.setChangeVersions(false);
+			
+			WorldOptions worldOptions = new WorldOptions(WorldSeed.fromUserInput(seed), parseWorldType(worldType));
+			World world = createWorld(worldOptions);
+			VersionFeatures versionFeatures = DefaultVersionFeatures.builder(worldOptions, world.getBiomeDataOracle()).create(mcInterface.getRecognisedVersion());
+			
+			Main.setIntermediate(false);
+			
+			try {
+				int structureOffset = parseStructureOffset(structureType);
+				if (structureType.equals("Stronghold")) {
+					strongholdSearch(worldOptions.getWorldSeed().getLong(), radius, startPos, versionFeatures.get(STRONGHOLD_PRODUCER), structureOffset);
+				} else {
+					scanForStructure(parseLocationChecker(structureType, versionFeatures, unlikelyEndCities), startPos, resolution, radius, structureOffset);
+				}
+			} catch (InterruptedException | InvocationTargetException e) {
+				AmidstLogger.info("Stopping search...");
+				SwingUtilities.invokeLater(() -> Main.getProgressBar().setValue(Main.getProgressBar().getMinimum()));
 			}
-		} catch (InterruptedException | InvocationTargetException e) {
-			AmidstLogger.info("Stopping search...");
-			SwingUtilities.invokeLater(() -> Main.getProgressBar().setValue(Main.getProgressBar().getMinimum()));
-		}
-		world.dispose();
-		Main.setChangeVersions(true);
-		Main.setButtonAction(true);
-		Main.setButtonEnabled(true);
+			
+			world.dispose();
+			Main.setChangeVersions(true);
+			Main.setButtonAction(true);
+			Main.setButtonEnabled(true);
+		});
 	}
 	
-	public void createWorld(WorldSeed seed, WorldType type) {
+	public void interrupt() {
+		Thread.getAllStackTraces().keySet().stream().filter(t -> t.getName().equals("StructureWorker")).forEach(t -> t.interrupt());
+	}
+	
+	public boolean isAlive() {
+		return ((ThreadPoolExecutor) structureWorker).getActiveCount() > 0;
+	}
+	
+	public World createWorld(WorldOptions worldOptions) {
 		Consumer<World> onDispose = world -> {
 			world = null;
 		};
-		WorldOptions worldOptions = new WorldOptions(seed, type);
 		try {
-			world = worldBuilder.from(mcInterface, onDispose, worldOptions);
+			return worldBuilder.from(mcInterface, onDispose, worldOptions);
 		} catch (MinecraftInterfaceException | NullPointerException e) {
-			Main.errorProcedure(e, false);
+			Main.errorProcedure(e, true);
 		}
+		
+		return null;
 	}
 	
-	public LocationChecker parseLocationChecker(String structtype, WorldSeed seed) {
+	public int parseStructureOffset(String structtype) {
 		switch (structtype) {
 		case "Village":
-			structureOffset = 4;
-			return new VillageLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
-					versionFeatures.getValidBiomesForStructure_Village(), versionFeatures.getDoComplexVillageCheck());
+			return 4;
 		case "Mineshaft":
-			structureOffset = 8;
-			return versionFeatures.getMineshaftAlgorithmFactory().apply(seed.getLong());
+			return 8;
 		case "Mansion":
-			structureOffset = 8;
-			return new WoodlandMansionLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
-					versionFeatures.getValidBiomesForStructure_WoodlandMansion());
+			return 8;
 		case "Jungle Temple":
-			structureOffset = 8;
-			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
-					versionFeatures.getValidBiomesAtMiddleOfChunk_JungleTemple(),
-					versionFeatures.getSeedForStructure_JungleTemple(),
-					versionFeatures.getBuggyStructureCoordinateMath());
+			return 8;
 		case "Desert Temple":
-			structureOffset = 8;
-			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
-					versionFeatures.getValidBiomesAtMiddleOfChunk_DesertTemple(),
-					versionFeatures.getSeedForStructure_DesertTemple(),
-					versionFeatures.getBuggyStructureCoordinateMath());
+			return 8;
 		case "Igloo":
-			structureOffset = 8;
-			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
-					versionFeatures.getValidBiomesAtMiddleOfChunk_Igloo(), versionFeatures.getSeedForStructure_Igloo(),
-					versionFeatures.getBuggyStructureCoordinateMath());
+			return 8;
 		case "Shipwreck":
-			structureOffset = 8;
-			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
-					versionFeatures.getMaxDistanceScatteredFeatures_Shipwreck(), (byte) 8,
-					versionFeatures.getValidBiomesAtMiddleOfChunk_Shipwreck(),
-					versionFeatures.getSeedForStructure_Shipwreck(), versionFeatures.getBuggyStructureCoordinateMath());
+			return 8;
 		case "Witch Hut":
-			structureOffset = 8;
-			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
-					versionFeatures.getValidBiomesAtMiddleOfChunk_WitchHut(),
-					versionFeatures.getSeedForStructure_WitchHut(), versionFeatures.getBuggyStructureCoordinateMath());
+			return 8;
 		case "Stronghold":
-			structureOffset = 4;
-			isStrongholdSearch = true;
-			return null;
+			return 4;
 		case "Ocean Monument":
-			structureOffset = 8;
-			return versionFeatures.getOceanMonumentLocationCheckerFactory().apply(seed.getLong(),
-					world.getBiomeDataOracle(), versionFeatures.getValidBiomesAtMiddleOfChunk_OceanMonument(),
-					versionFeatures.getValidBiomesForStructure_OceanMonument());
+			return 8;
 		case "Ocean Ruin":
-			structureOffset = 8;
-			return new ScatteredFeaturesLocationChecker(seed.getLong(), world.getBiomeDataOracle(), (byte) 16, (byte) 8,
-					versionFeatures.getValidBiomesAtMiddleOfChunk_OceanRuins(),
-					versionFeatures.getSeedForStructure_OceanRuins(),
-					versionFeatures.getBuggyStructureCoordinateMath());
+			return 8;
 		case "Nether Fortress":
-			structureOffset = 88;
-			return new NetherFortressAlgorithm(seed.getLong());
+			return 88;
 		case "End City":
-			structureOffset = 8;
-			return new RefinedEndCityLocationChecker(seed.getLong(), world.getEndIslandOracle(), unlikelyEndCities);
+			return 8;
 		case "Buried Treasure":
-			structureOffset = 9;
-			return new BuriedTreasureLocationChecker(seed.getLong(), world.getBiomeDataOracle(),
-					versionFeatures.getValidBiomesAtMiddleOfChunk_BuriedTreasure(),
-					versionFeatures.getSeedForStructure_BuriedTreasure());
+			return 9;
 		case "Pillager Outpost":
-			structureOffset = 4;
-			return new PillagerOutpostLocationChecker(
-					seed.getLong(),
-					world.getBiomeDataOracle(),
-					parseLocationChecker("Village", seed),
-					versionFeatures.getOutpostVillageAvoidDistance(),
-					versionFeatures.getValidBiomesForStructure_PillagerOutpost());
+			return 4;
+		default:
+			Main.errorProcedure(
+					"parseStructureOffset error: Input did not match any structure type, instead got " + structtype,
+					false);
+			break;
+		}
+		return 0;
+	}
+	
+	public LocationChecker parseLocationChecker(String structtype, VersionFeatures versionFeatures, boolean unlikelyEndCities) {
+		switch (structtype) {
+		case "Village":
+			return versionFeatures.get(VILLAGE_LOCATION_CHECKER);
+		case "Mineshaft":
+			return versionFeatures.get(MINESHAFT_LOCATION_CHECKER);
+		case "Mansion":
+			return versionFeatures.get(WOODLAND_MANSION_LOCATION_CHECKER);
+		case "Jungle Temple":
+			return versionFeatures.get(JUNGLE_TEMPLE_LOCATION_CHECKER);
+		case "Desert Temple":
+			return versionFeatures.get(DESERT_TEMPLE_LOCATION_CHECKER);
+		case "Igloo":
+			return versionFeatures.get(IGLOO_LOCATION_CHECKER);
+		case "Shipwreck":
+			return versionFeatures.get(SHIPWRECK_LOCATION_CHECKER);
+		case "Witch Hut":
+			return versionFeatures.get(WITCH_HUT_LOCATION_CHECKER);
+		case "Ocean Monument":
+			return versionFeatures.get(OCEAN_MONUMENT_LOCATION_CHECKER);
+		case "Ocean Ruin":
+			return versionFeatures.get(OCEAN_RUINS_LOCATION_CHECKER);
+		case "Nether Fortress":
+			return versionFeatures.get(NETHER_FORTRESS_LOCATION_CHECKER);
+		case "End City":
+			return new RefinedEndCityLocationChecker(
+						   versionFeatures.get(WORLD_OPTIONS).getWorldSeed().getLong(),
+						   versionFeatures.get(END_ISLAND_ORACLE),
+						   unlikelyEndCities
+					   );
+		case "Buried Treasure":
+			return versionFeatures.get(BURIED_TREASURE_LOCATION_CHECKER);
+		case "Pillager Outpost":
+			return versionFeatures.get(PILLAGER_OUTPOST_LOCATION_CHECKER);
 		default:
 			Main.errorProcedure(
 					"parseLocationChecker error: Input did not match any structure type, instead got " + structtype,
@@ -202,22 +205,9 @@ public class StructureFinder extends Thread {
 		return null;
 	}
 	
-	public static void init(RecognisedVersion ver, File installLocation)
-			throws FormatException, IOException, MinecraftInterfaceCreationException {
-		versionFeatures = DefaultVersionFeatures.create(ver);
-		final MinecraftInstallation minecraftInstallation = installLocation != null
-				? MinecraftInstallation.newLocalMinecraftInstallation(installLocation)
-				: MinecraftInstallation.newLocalMinecraftInstallation();
-		LauncherProfile launcherProfile = null;
-		launcherProfile = minecraftInstallation.newLauncherProfile(ver.getName());
-		mcInterface = MinecraftInterfaces.fromLocalProfile(launcherProfile);
-		worldBuilder = WorldBuilder.createSilentPlayerless();
-	}
-	
-	private void strongholdSearch(long seed, int radius, CoordinatesInWorld start) throws InvocationTargetException, InterruptedException {
-		StrongholdProducer_128Algorithm shp = new StrongholdProducer_128Algorithm(seed, world.getBiomeDataOracle(),
-				versionFeatures.getValidBiomesAtMiddleOfChunk_Stronghold());
-		List<CoordinatesInWorld> coords = shp.getWorldIcons().stream().map(icon -> icon.getCoordinates())
+	private void strongholdSearch(long seed, int radius, CoordinatesInWorld start, CachedWorldIconProducer strongholdProducer, int structureOffset)
+			throws InvocationTargetException, InterruptedException {
+		List<CoordinatesInWorld> coords = strongholdProducer.getWorldIcons().stream().map(icon -> icon.getCoordinates())
 				.collect(Collectors.toList());
 		int cradius = radius << 4;
 		int i = 0;
@@ -234,7 +224,7 @@ public class StructureFinder extends Thread {
 		setProgress(Main.getProgressBar().getMinimum());
 	}
 	
-	public void scanForStructure(LocationChecker checker, CoordinatesInWorld start, Resolution res, int r) throws InvocationTargetException, InterruptedException {
+	public void scanForStructure(LocationChecker checker, CoordinatesInWorld start, Resolution res, int r, int structureOffset) throws InvocationTargetException, InterruptedException {
 		boolean flag1 = Main.isStructTypeNetherFortress();
 		boolean flag2 = Main.isCoordTypeNether();
 		CoordinatesInWorld newCoords = null;
@@ -266,29 +256,26 @@ public class StructureFinder extends Thread {
 	private void setProgress(int i) throws InvocationTargetException, InterruptedException {
 		SwingUtilities.invokeAndWait(() -> Main.getProgressBar().setValue(i));
 	}
-	
-	public WorldSeed getSeed() {
-		return worldSeed;
+
+	public RecognisedVersion getRecognisedVersion() {
+		return mcInterface.getRecognisedVersion();
+	}
+
+	public MinecraftInterface getMinecraftInterface() {
+		return mcInterface;
+	}
+
+	public WorldBuilder getWorldBuilder() {
+		return worldBuilder;
 	}
 	
-	public WorldType getWorldType() {
-		return worldType;
+	public void dispose() {
+		structureWorker.shutdownNow();
 	}
 	
-	public String getStructureType() {
-		return structureType;
-	}
-	
-	public int getRadius() {
-		return radius;
-	}
-	
-	public CoordinatesInWorld getStartPos() {
-		return startPos;
-	}
-	
-	public VersionFeatures getVersionFeatures() {
-		return versionFeatures;
+	@Override
+	public void finalize() {
+		dispose();
 	}
 	
 }

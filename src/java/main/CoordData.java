@@ -33,6 +33,6 @@ public class CoordData {
 	
 	@Override
 	public String toString() {
-		return x + ", " + z;
+		return "(" + x + ", " + z + ")";
 	}
 }
