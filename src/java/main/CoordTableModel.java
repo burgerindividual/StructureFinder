@@ -1,6 +1,5 @@
 package main;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -73,6 +72,10 @@ public class CoordTableModel extends AbstractTableModel {
 		return data.get(index);
 	}
 	
+	public boolean isEmpty() {
+		return data.isEmpty() || data.stream().allMatch(l -> l == null);
+	}
+	
 	@Override
 	public Class<?> getColumnClass(int columnIndex) {
 		switch (columnIndex) {
@@ -93,12 +96,11 @@ public class CoordTableModel extends AbstractTableModel {
 	
 	public static class AngleRenderer extends DefaultTableCellRenderer {
 		private static final long serialVersionUID = 8768622706563933385L;
-		private static final DecimalFormat FORMATTER = new DecimalFormat("###.#");
 		
 		@Override
 		public void setValue(Object value) {
 			if (value instanceof Float) {
-				setText(FORMATTER.format((float) value) + (char) 176);
+				setText(CoordData.formatAngle((float) value));
 			}
 		}
 	}

@@ -2,8 +2,9 @@ package main;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -37,24 +38,18 @@ import static amidst.mojangapi.world.versionfeatures.FeatureKey.*;
 public class StructureFinder {
 	private static final WorldBuilder worldBuilder = WorldBuilder.createSilentPlayerless();
 	
-	private final ExecutorService structureWorker;
+	private final StructureWorker structureWorker;
 	private final MinecraftInterface mcInterface;
 	
 	public StructureFinder(RecognisedVersion ver, MinecraftInstallation mi)
 			throws FormatException, IOException, MinecraftInterfaceCreationException {
-		this.structureWorker = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
-				new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
-					@Override
-					public Thread newThread(Runnable r) {
-						return new Thread(r, "StructureWorker");
-					}
-				});
+		this.structureWorker = new StructureWorker();
 		this.mcInterface = MinecraftInterfaces.fromLocalProfile(mi.newLauncherProfile(ver.getName()));
 	}
 	
-	public void run(String seed, String worldType, String structureType, int radius,
+	public void submit(String seed, String worldType, String structureType, int radius,
 			CoordinatesInWorld startPos, Resolution resolution, boolean unlikelyEndCities) {
-		structureWorker.execute(() -> {
+		structureWorker.submit(() -> {
 			Main.setChangeVersions(false);
 			
 			WorldOptions worldOptions = new WorldOptions(WorldSeed.fromUserInput(seed), parseWorldType(worldType));
@@ -82,12 +77,12 @@ public class StructureFinder {
 		});
 	}
 	
-	public void interrupt() {
-		Thread.getAllStackTraces().keySet().stream().filter(t -> t.getName().equals("StructureWorker")).forEach(t -> t.interrupt());
+	public void cancel() {
+		structureWorker.cancel();
 	}
 	
-	public boolean isAlive() {
-		return ((ThreadPoolExecutor) structureWorker).getActiveCount() > 0;
+	public boolean isRunning() {
+		return structureWorker.isRunning();
 	}
 	
 	public World createWorld(WorldOptions worldOptions) {
@@ -276,6 +271,41 @@ public class StructureFinder {
 	@Override
 	public void finalize() {
 		dispose();
+	}
+	
+	private class StructureWorker extends ThreadPoolExecutor {
+		private final List<Future<?>> futures;
+		
+		public StructureWorker() {
+			super(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
+				@Override
+				public Thread newThread(Runnable r) {
+					return new Thread(r, "StructureWorker");
+				}
+			});
+			this.futures = new ArrayList<Future<?>>();
+		}
+		
+		private void cleanList() {
+			futures.removeIf(f -> f.isDone());
+		}
+		
+		public Future<?> submit(Runnable r) {
+			Future<?> future = super.submit(r);
+			futures.add(future);
+			cleanList();
+			return future;
+		}
+		
+		public void cancel() {
+			futures.forEach(f -> f.cancel(true));
+			cleanList();
+		}
+		
+		public boolean isRunning() {
+			return getActiveCount() > 0;
+		}
+		
 	}
 	
 }

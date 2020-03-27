@@ -13,6 +13,8 @@ import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -20,6 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -51,6 +54,7 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.RowSorter;
+import javax.swing.RowSorter.SortKey;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SortOrder;
 import javax.swing.SpinnerNumberModel;
@@ -60,6 +64,7 @@ import javax.swing.table.TableRowSorter;
 import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
 import javax.swing.event.HyperlinkEvent;
+import javax.swing.filechooser.FileSystemView;
 import javax.swing.plaf.basic.BasicProgressBarUI;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.html.HTMLDocument;
@@ -87,10 +92,11 @@ public class Main {
 	public static final Font defaultFont = new Font(Font.decode(null).getName(), Font.PLAIN, 12);
 	private static final JFrame jframe = new JFrame("StructureFinder");
 	private static final JPanel jpanel = new JPanel(new GridBagLayout());
+	private static final GridBagConstraints constraints = new GridBagConstraints();
 	private static final JComboBox<String> coordtypebox = new JComboBox<>(DIMENSIONS);
 	private static final JComboBox<ConditionalString> structurebox = new JComboBox<>();
 	private static final JComboBox<String> worldtypebox = new JComboBox<>(WORLD_TYPES);
-	private static final JButton jbutton = new JButton("Run");
+	private static final JButton runButton = new JButton("Run");
 	private static final JTextField seed = new JTextField();
 	private static final JSpinner radius = new JSpinner(new SpinnerNumberModel(500, 1, 62500, 1));
 	private static final JSpinner startX = new JSpinner(new SpinnerNumberModel(0, -30000000, 30000000, 1));
@@ -110,14 +116,21 @@ public class Main {
 	private static final JPanel seedPanel = new JPanel(new GridBagLayout());
 	private static final JMenuBar menubar = new JMenuBar();
 	private static final JMenu versionMenu = new JMenu("Version");
+	private static final JMenu toolsMenu = new JMenu("Tools");
+	private static final JMenu exportMenu = new JMenu("Export Structures");
+	private static final JMenuItem exportToTxt = new JMenuItem("Export to Text File (TXT) ...");
+	private static final JMenuItem exportToCsv = new JMenuItem("Export to Spreadsheet (CSV) ...");
 	private static final JMenu helpMenu = new JMenu("Help");
 	private static final JMenuItem about = new JMenuItem("About StructureFinder");
 	private static final JMenuItem viewLog = new JMenuItem("View Log");
 	private static final JCheckBoxMenuItem showTooltips = new JCheckBoxMenuItem("Show Tooltips on Hover", true);
 	private static final ButtonGroup versiongroup = new ButtonGroup();
-	private static final GridBagConstraints constraints = new GridBagConstraints();
 	
 	private static StructureFinder sf;
+	
+	private static String[] lastRunInfo;
+	
+	private static List<? extends SortKey> lastSortKeys;
 
 	public static void main(String[] args) {
 		AmidstLogger.info("Running from Java version " + System.getProperty("java.version") + ", vendor " + System.getProperty("java.vendor"));
@@ -147,17 +160,25 @@ public class Main {
 				jframe.getWidth() / 50);
 
 		showTooltips.setToolTipText(
-				"<html>Enables or disables tooltips.<br>What you are reading right now is a tooltip.</html>");
-
-		helpMenu.add(showTooltips);
-		helpMenu.addSeparator();
-		helpMenu.add(viewLog);
-		helpMenu.add(about);
+					"<html>Enables or disables tooltips.<br>What you are reading right now is a tooltip.</html>");
 
 		versionMenu.setToolTipText(
 				"<html>A dropdown for selecting the version used.<br>Versions that are grayed out have not been<br>run from the minecraft launcher before.</html>");
 		menubar.add(versionMenu);
+		
+		exportMenu.setEnabled(false);
+		exportMenu.setToolTipText("<html>In order to export structures, there has to be items in the table.</html>");
+		exportMenu.add(exportToTxt);
+		exportMenu.add(exportToCsv);
+		toolsMenu.add(exportMenu);
+		menubar.add(toolsMenu);
+		
+		helpMenu.add(showTooltips);
+		helpMenu.addSeparator();
+		helpMenu.add(viewLog);
+		helpMenu.add(about);
 		menubar.add(helpMenu);
+		
 		setConstraints(0, 0, 0, 0, GridBagConstraints.BOTH, 0, 0, 4, 1, 0, 0, GridBagConstraints.PAGE_START);
 		jpanel.add(menubar, constraints);
 
@@ -250,17 +271,18 @@ public class Main {
 				GridBagConstraints.HORIZONTAL, 0, 2, 1, 1, 1, 0, GridBagConstraints.PAGE_END);
 		seedPanel.add(seed, constraints);
 
-		jbutton.setToolTipText("<html>Click to start / cancel the search.</html>");
+		runButton.setToolTipText("<html>Click to start / cancel the search.</html>");
 		setConstraints(0, jframe.getWidth() / 50, jframe.getHeight() / 20, jframe.getWidth() / 50,
 				GridBagConstraints.NONE, 1, 2, 1, 1, 0, 0.1, GridBagConstraints.PAGE_END);
-		seedPanel.add(jbutton, constraints);
+		seedPanel.add(runButton, constraints);
 
 		setConstraints(jframe.getHeight() / 20, 0, 0, 0, GridBagConstraints.BOTH, 0, 8, 3, 1, 0, 0.1,
 				GridBagConstraints.PAGE_END);
 		jpanel.add(seedPanel, constraints);
 		// seed panel ends here
 
-		output.setModel(new CoordTableModel());
+		CoordTableModel tableModel = new CoordTableModel();
+		output.setModel(tableModel);
 		Action copyAction = new AbstractAction("copyAction") {
 			private static final long serialVersionUID = 6540715274968882774L;
 			
@@ -292,13 +314,13 @@ public class Main {
 		output.getActionMap().put("copyAction", copyAction);
 		output.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke("control C"),
 				"copyAction");
-		output.setAutoCreateRowSorter(true);
+		output.setRowSorter(new TableRowSorter<CoordTableModel>(tableModel));
 		output.getTableHeader().setToolTipText("<html>Click on any one of the column headers to sort by it.</html>");
 		output.getTableHeader().setReorderingAllowed(false);
 		output.setDefaultRenderer(Float.class, new CoordTableModel.AngleRenderer());
 		output.setDefaultRenderer(Byte.class, new CoordTableModel.DirectionRenderer());
-		List<RowSorter.SortKey> sortKeys = Arrays.asList(new RowSorter.SortKey[] { new RowSorter.SortKey(2, SortOrder.ASCENDING) });
-		output.getRowSorter().setSortKeys(sortKeys);
+		lastSortKeys = Arrays.asList(new RowSorter.SortKey[] { new RowSorter.SortKey(2, SortOrder.ASCENDING) });
+		output.getRowSorter().setSortKeys(lastSortKeys);
 		scrollpane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		scrollpane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
 		setConstraints(insetDefault, GridBagConstraints.BOTH, 3, 1, 1, 8, 1, 1, GridBagConstraints.CENTER);
@@ -346,6 +368,19 @@ public class Main {
 		viewLog.setIcon(new ImageIcon(((ImageIcon) UIManager.getIcon("FileView.fileIcon")).getImage().getScaledInstance(
 				(int) ((viewLog.getPreferredSize().height - viewLog.getIconTextGap()) * 0.8),
 				viewLog.getPreferredSize().height - viewLog.getIconTextGap(), Image.SCALE_SMOOTH)));
+		
+		try {
+			File tempTxt = File.createTempFile("tempTxt", ".txt");
+			File tempCsv = File.createTempFile("tempCsv", ".csv");
+			
+			exportToTxt.setIcon(FileSystemView.getFileSystemView().getSystemIcon(tempTxt));
+			exportToCsv.setIcon(FileSystemView.getFileSystemView().getSystemIcon(tempCsv));
+			
+			tempTxt.delete();
+			tempCsv.delete();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
 
 		changeFont(jpanel, defaultFont);
 		setFocus(jpanel, false);
@@ -425,9 +460,9 @@ public class Main {
 	}
 
 	public static void initListeners() {
-		jbutton.addActionListener(e -> {
-			if (jbutton.getText().equals("Run")) {
-				if (!seed.getText().trim().isEmpty()) {
+		runButton.addActionListener(e -> {
+			if (runButton.getText().equals("Run")) {
+				if (!seed.getText().isEmpty()) {
 					Resolution res = getResolution();
 					try {
 						if (isStructTypeNetherFortress() && isCoordTypeNether()) {
@@ -443,7 +478,7 @@ public class Main {
 					} catch (ParseException e1) {
 						errorProcedure(e1, false);
 					}
-					if (!sf.isAlive()) {
+					if (!sf.isRunning()) {
 						setIntermediate(true);
 						if (isStructTypeNetherFortress() && !isCoordTypeNether()) {
 							executeFinder(seed.getText(), String.valueOf(worldtypebox.getSelectedItem()),
@@ -462,7 +497,7 @@ public class Main {
 					errorProcedure("Seed is empty", false);
 				}
 			} else {
-				sf.interrupt();
+				sf.cancel();
 				setButtonEnabled(false);
 			}
 			
@@ -522,6 +557,60 @@ public class Main {
 
 			JOptionPane.showMessageDialog(jframe, scrollPane, "Structure Finder: Log", JOptionPane.PLAIN_MESSAGE);
 		});
+		output.getModel().addTableModelListener(e -> {
+			if(e.getSource() instanceof CoordTableModel) {
+				CoordTableModel m = (CoordTableModel) e.getSource();
+				boolean b = !m.isEmpty();
+				if(exportMenu.isEnabled() != b) {
+					exportMenu.setEnabled(b);
+					if(b == true) {
+						exportMenu.setToolTipText("<html>Export structure data to a file.</html>");
+					} else {
+						exportMenu.setToolTipText("<html>In order to export structures, there has to be items in the table.</html>");
+					}
+				}
+			}
+		});
+		exportToTxt.addActionListener(e -> {
+			Path p = FileSaveHelper.saveToPath(jpanel, "txt", lastRunInfo[1].substring(6), lastRunInfo[2].substring(16).toLowerCase().replace(' ', '_'));
+			if (p != null) {
+				try (PrintWriter out = new PrintWriter(p.toAbsolutePath().toString())) {
+					for(String s : lastRunInfo) {
+						if(s != null) {
+							out.println(s);
+						}
+					}
+					out.println();
+					CoordTableModel m = (CoordTableModel) output.getModel();
+					for(int i = 0; i < m.getRowCount(); i++) {
+						int row = ((TableRowSorter<?>)output.getRowSorter()).convertRowIndexToModel(i);
+						out.println(m.getValueAt(row, 0) + "," + m.getValueAt(row, 1));
+					}
+				} catch (FileNotFoundException e1) {
+					errorProcedure(e1, false);
+				}
+			}
+		});
+		exportToCsv.addActionListener(e -> {
+			Path p = FileSaveHelper.saveToPath(jpanel, "csv", lastRunInfo[1].substring(6), lastRunInfo[2].substring(16).toLowerCase().replace(' ', '_'));
+			if (p != null) {
+				try (PrintWriter out = new PrintWriter(p.toAbsolutePath().toString())) {
+					out.println("X,Z,Distance,F3 Degree,Direction");
+					
+					CoordTableModel m = (CoordTableModel) output.getModel();
+					for(int i = 0; i < m.getRowCount(); i++) {
+						int row = ((TableRowSorter<?>)output.getRowSorter()).convertRowIndexToModel(i);
+						out.println(m.getValueAt(row, 0) + ","
+								+ m.getValueAt(row, 1) + ","
+								+ m.getValueAt(row, 2) + ","
+								+ CoordData.formatAngle((float) m.getValueAt(row, 3)) + ","
+								+ AngleHelper.getIdFromAbbreviation((byte) m.getValueAt(row, 4)));
+					}
+				} catch (FileNotFoundException e1) {
+					errorProcedure(e1, false);
+				}
+			}
+		});
 	}
 
 	private static void setConstraints(int iTop, int iLeft, int iBottom, int iRight, int fillConst, int gridx,
@@ -565,6 +654,21 @@ public class Main {
 
 	public static void executeFinder(String seed, String worldType, String structureType, int radius,
 			CoordinatesInWorld startPos, Resolution resolution, boolean unlikelyEndCities) {
+		lastRunInfo = new String[] {
+				"Version: " + getVersionSelected(),
+				"Seed: " + seed,
+				"Structure Type: " + structureType,
+				"World Type: " + worldType,
+				"Search Radius: " + radius,
+				"Start Position: " + startPos,
+				null,
+				null
+		};
+		if(structureType.equals("End City")) {
+			lastRunInfo[7] = "Include Unlikely End Cities: " + unlikelyEndCities;
+		} else if(structureType.equals("Nether Fortress")) {
+			lastRunInfo[6] = "Dimension Coordinate Type: " + resolution;
+		}
 		((CoordTableModel) output.getModel()).clearRows();
 		if (String.valueOf(structurebox.getSelectedItem()).equals("Stronghold")) {
 			progressbar.setMinimum(0);
@@ -574,7 +678,18 @@ public class Main {
 			progressbar.setMaximum((Integer) Main.radius.getValue());
 		}
 		progressbar.setValue(progressbar.getMinimum());
-		sf.run(seed, worldType, structureType, radius, startPos, resolution, unlikelyEndCities);
+		sf.submit(seed, worldType, structureType, radius, startPos, resolution, unlikelyEndCities);
+	}
+	
+	private static String getVersionSelected() {
+		Enumeration<AbstractButton> enumButtons = versiongroup.getElements();
+		while (enumButtons.hasMoreElements()) {
+			AbstractButton b = enumButtons.nextElement();
+			if (b.isSelected()) {
+				return b.getText();
+			}
+		}
+		return null;
 	}
 
 	public static JProgressBar getProgressBar() {
@@ -693,7 +808,7 @@ public class Main {
 		});
 	}
 
-	public static RecognisedVersion getSelectedVersion() {
+	private static RecognisedVersion getSelectedVersion() {
 		RecognisedVersion version = null;
 		for (Component menuitem : versionMenu.getMenuComponents()) {
 			if (((JVersionMenuItem) menuitem).isSelected()) {
@@ -706,16 +821,16 @@ public class Main {
 	public static void setButtonAction(boolean t) {
 		SwingUtilities.invokeLater(() -> {
 			if (t) {
-				jbutton.setText("Run");
+				runButton.setText("Run");
 			} else {
-				jbutton.setText("Cancel");
+				runButton.setText("Cancel");
 			}
 		});
 	}
 	
 	public static void setButtonEnabled(boolean enabled) {
 		SwingUtilities.invokeLater(() -> {
-			jbutton.setEnabled(enabled);
+			runButton.setEnabled(enabled);
 		});
 	}
 
@@ -736,17 +851,19 @@ public class Main {
 		boolean shipwreck = RecognisedVersion.isNewerOrEqualTo(version, RecognisedVersion._18w11a);
 		boolean pillager_outpost = RecognisedVersion.isNewer(version, RecognisedVersion._18w46a);
 
-		ConditionalString[] structureTypes = { new ConditionalString("Mineshaft", mineshaft),
-				new ConditionalString("Village", village), new ConditionalString("Stronghold", stronghold),
-				new ConditionalString("Nether Fortress", nether_fortress),
-				new ConditionalString("Desert Temple", desert_temple),
-				new ConditionalString("Jungle Temple", jungle_temple), new ConditionalString("Witch Hut", witch_hut),
-				new ConditionalString("Ocean Monument", ocean_monument), new ConditionalString("End City", end_city),
-				new ConditionalString("Igloo", igloo), new ConditionalString("Mansion", mansion),
-				new ConditionalString("Ocean Ruin", ocean_ruin),
-				new ConditionalString("Buried Treasure", buried_treasure),
-				new ConditionalString("Shipwreck", shipwreck),
-				new ConditionalString("Pillager Outpost", pillager_outpost) };
+		ConditionalString[] structureTypes = {
+					new ConditionalString("Mineshaft", mineshaft),
+					new ConditionalString("Village", village), new ConditionalString("Stronghold", stronghold),
+					new ConditionalString("Nether Fortress", nether_fortress),
+					new ConditionalString("Desert Temple", desert_temple),
+					new ConditionalString("Jungle Temple", jungle_temple), new ConditionalString("Witch Hut", witch_hut),
+					new ConditionalString("Ocean Monument", ocean_monument), new ConditionalString("End City", end_city),
+					new ConditionalString("Igloo", igloo), new ConditionalString("Mansion", mansion),
+					new ConditionalString("Ocean Ruin", ocean_ruin),
+					new ConditionalString("Buried Treasure", buried_treasure),
+					new ConditionalString("Shipwreck", shipwreck),
+					new ConditionalString("Pillager Outpost", pillager_outpost)
+				};
 
 		DefaultComboBoxModel<ConditionalString> model = new DefaultComboBoxModel<>(structureTypes);
 		structurebox.setModel(model);

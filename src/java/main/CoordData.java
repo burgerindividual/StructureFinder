@@ -1,8 +1,12 @@
 package main;
 
+import java.text.DecimalFormat;
+
 import amidst.mojangapi.world.coordinates.CoordinatesInWorld;
 
 public class CoordData {
+	private static final DecimalFormat FORMATTER = new DecimalFormat("###.#");
+	
 	private final long x;
 	private final long z;
 	private final double distance;
@@ -29,6 +33,10 @@ public class CoordData {
 	
 	public float getAngle() {
 		return angle;
+	}
+	
+	public static String formatAngle(float angle) {
+		return FORMATTER.format(angle) + (char) 176;
 	}
 	
 	@Override
