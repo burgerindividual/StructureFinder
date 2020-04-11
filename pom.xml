@@ -43,12 +43,9 @@
 	</build>
 	<dependencies>
 		<dependency>
-			<groupId>com.github.burgerguy</groupId>
-			<artifactId>amidst-changes</artifactId> 
-			<version>fix-file-systems-SNAPSHOT</version>
-			<!--<groupId>com.github.toolbox4minecraft</groupId>
+			<groupId>com.github.toolbox4minecraft</groupId>
 			<artifactId>amidst</artifactId> 
-			<version>master-SNAPSHOT</version>-->
+			<version>master-SNAPSHOT</version>
 			<!--<groupId>com.github.burgerguy</groupId>
 			<artifactId>amidst-changes</artifactId>
 			<version>master-changes-SNAPSHOT</version>-->
